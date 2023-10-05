@@ -1,10 +1,12 @@
 using docxParserForms.Db;
+using docxParserForms.DocxHandler;
 using Microsoft.EntityFrameworkCore;
 
 namespace docxParserForms
 {
     public partial class Form1 : Form
     {
+        MainHandler _handlerDocx = new MainHandler();
 
         public Form1()
         {
@@ -19,43 +21,40 @@ namespace docxParserForms
         private void button1_Click(object sender, EventArgs e)
         {
             DialogResult dr = this.openFileDialog1.ShowDialog();
-            var filenames = new List<string>();
 
             if (dr == DialogResult.OK)
             {
                 richTextBox1.Clear();
-                foreach(var file in openFileDialog1.FileNames)
+                foreach(string file in openFileDialog1.FileNames)
                 {
-                    richTextBox1.Text += file;
+                    richTextBox1.Text += _handlerDocx.ReadText(file);
                     richTextBox1.Text += "\n";
                 }
 
-                checkForEmptyTextBox();
+                CheckForEmptyTextBox();
             }
         }
 
         private void richTextBox1_DragDrop(object sender, DragEventArgs e)
         {
-            var filename = e.Data.GetData("FileDrop");
+            object filename = e.Data.GetData("FileDrop");
             if(filename != null)
             {
-                var list = filename as string[];
-
-                if(list != null)
+                if (filename is string[] list)
                 {
                     richTextBox1.Clear();
                     foreach (var item in list)
                     {
-                        if(item.EndsWith(".docx"))
-                            richTextBox1.Text += item + "\n";
+                        if (item.EndsWith(".docx"))
+                            richTextBox1.Text += _handlerDocx.ReadText(item);
                     }
 
-                    checkForEmptyTextBox();
+                    CheckForEmptyTextBox();
                 }
             }
         }
 
-        private void checkForEmptyTextBox()
+        private void CheckForEmptyTextBox()
         {
             if (richTextBox1.Text.Trim().Length == 0)
             {
