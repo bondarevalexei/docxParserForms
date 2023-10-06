@@ -2,14 +2,17 @@
 using DocumentFormat.OpenXml.Wordprocessing;
 using System.Drawing.Imaging;
 using System.Diagnostics;
+using docxParserForms.Db.Context;
 
 namespace docxParserForms.DocxHandler
 {
     public class MainHandler
     {
+        private ModelsDbContext _db = new ModelsDbContext();
+
         public string ReadText(string filepath)
         {
-            string text = String.Empty;
+            string text = string.Empty;
 
             using (WordprocessingDocument wordDocument =
                 WordprocessingDocument.Open(filepath, false))
@@ -96,7 +99,6 @@ namespace docxParserForms.DocxHandler
 
                         imageList.Add(imageFileName);
                     }
-
                 }
             }
 

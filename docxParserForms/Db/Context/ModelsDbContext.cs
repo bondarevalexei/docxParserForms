@@ -8,6 +8,8 @@ namespace docxParserForms.Db.Context
     {
         public DbSet<Model> Models { get; set; }
 
-        public ModelsDbContext(DbContextOptions<ModelsDbContext> options) : base(options) { }
+        public ModelsDbContext() {
+            Database.EnsureCreated();
+        }
     }
 }
