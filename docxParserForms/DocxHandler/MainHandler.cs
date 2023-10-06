@@ -26,10 +26,18 @@ namespace docxParserForms.DocxHandler
 
                 var splittedText = text.Split(Environment.NewLine);
 
+                List<string> images = new ();
+                int imageCounter = 0;
                 foreach (var line in splittedText)
                 {
                     if (line.StartsWith("Рисунок"))
-                        ExtractImages(body, wordDocument.MainDocumentPart);
+                        imageCounter++;
+                }
+
+                images = ExtractImages(body, wordDocument.MainDocumentPart);
+                foreach(var image in images)
+                {
+                    text += image + Environment.NewLine;
                 }
             }
 
