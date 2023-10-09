@@ -18,16 +18,25 @@ namespace docxParserForms.DocxHandler
             List<Bitmap> images = new();
             List<string> descriptions = new();
 
-            using (WordprocessingDocument wordDocument =
-                WordprocessingDocument.Open(filepath, false))
+            try
             {
-                Body body = wordDocument.MainDocumentPart.Document.Body;
+                using (WordprocessingDocument wordDocument =
+                    WordprocessingDocument.Open(filepath, false))
+                {
+                    Body body = wordDocument.MainDocumentPart.Document.Body;
 
-                descriptions = GetDescriptions(body);
-                images = ExtractImages(body, wordDocument.MainDocumentPart);
+                    descriptions = GetDescriptions(body);
+                    images = ExtractImages(body, wordDocument.MainDocumentPart);
+                }
+
+                SaveToDb(descriptions, images);
+
+                MessageBox.Show($"Файл {filepath} успешно обработан. Добавлено {descriptions.Count} элементов.");
             }
-
-            SaveToDb(descriptions, images);
+            catch(Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
 
         public List<string> GetDescriptions(Body body)
@@ -100,7 +109,7 @@ namespace docxParserForms.DocxHandler
                     sb.Append(splittedLine[i] + " ");
             }
 
-            if (!flag) return line[9..];
+            if (!flag) return line[9..].Trim();
             return sb.ToString();
         }
 
