@@ -16,6 +16,9 @@ namespace docxParserForms
 
             richTextBox1.AllowDrop = true;
             richTextBox1.DragDrop += new DragEventHandler(richTextBox1_DragDrop);
+
+            foreach (Control ctrl in this.Controls)
+                ctrl.Font = new Font("Comic Sans", ctrl.Font.Size + 5);
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -25,10 +28,8 @@ namespace docxParserForms
             if (dr == DialogResult.OK)
             {
                 richTextBox1.Clear();
-                foreach(string file in openFileDialog1.FileNames)
-                {
+                foreach (string file in openFileDialog1.FileNames)
                     _handlerDocx.HandleFile(file);
-                }
 
                 CheckForEmptyTextBox();
             }
@@ -37,16 +38,14 @@ namespace docxParserForms
         private void richTextBox1_DragDrop(object sender, DragEventArgs e)
         {
             object filename = e.Data.GetData("FileDrop");
-            if(filename != null)
+            if (filename != null)
             {
                 if (filename is string[] list)
                 {
                     richTextBox1.Clear();
                     foreach (var item in list)
-                    {
                         if (item.EndsWith(".docx"))
                             _handlerDocx.HandleFile(item);
-                    }
 
                     CheckForEmptyTextBox();
                 }
@@ -56,9 +55,10 @@ namespace docxParserForms
         private void CheckForEmptyTextBox()
         {
             if (richTextBox1.Text.Trim().Length == 0)
-            {
-                richTextBox1.Text = "Перетащите файлы или воспользуйтесь кнопкой";
-            }
+                richTextBox1.Text = "Перетащите файлы или воспользуйтесь кнопкой.";
         }
+
+        private void richTextBox1_TextChanged(object sender, EventArgs e) =>
+            richTextBox1.Text = "Перетащите файлы или воспользуйтесь кнопкой.";
     }
 }

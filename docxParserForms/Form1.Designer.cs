@@ -35,7 +35,7 @@
             // 
             // button1
             // 
-            button1.Location = new Point(305, 355);
+            button1.Location = new Point(70, 168);
             button1.Name = "button1";
             button1.Size = new Size(186, 36);
             button1.TabIndex = 0;
@@ -46,22 +46,24 @@
             // openFileDialog1
             // 
             openFileDialog1.FileName = "openFileDialog1";
-            openFileDialog1.Multiselect = true;
             openFileDialog1.Filter = "docx files (*.docx)|*.docx";
+            openFileDialog1.Multiselect = true;
             // 
             // richTextBox1
             // 
-            richTextBox1.Location = new Point(171, 11);
+            richTextBox1.EnableAutoDragDrop = true;
+            richTextBox1.Location = new Point(21, 12);
             richTextBox1.Name = "richTextBox1";
-            richTextBox1.Size = new Size(400, 300);
+            richTextBox1.Size = new Size(300, 150);
             richTextBox1.TabIndex = 1;
-            richTextBox1.Text = "Перетащите файлы или воспользуйтесь кнопкой";
+            richTextBox1.Text = "Перетащите файлы или воспользуйтесь кнопкой.";
+            richTextBox1.TextChanged += richTextBox1_TextChanged;
             // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
+            ClientSize = new Size(344, 211);
             Controls.Add(richTextBox1);
             Controls.Add(button1);
             Name = "Form1";
