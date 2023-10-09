@@ -31,7 +31,7 @@ namespace docxParserForms.DocxHandler
 
                 SaveToDb(descriptions, images);
 
-                MessageBox.Show($"Файл {filepath} успешно обработан. Добавлено {descriptions.Count} элементов.");
+                MessageBox.Show($"Файл {filepath} успешно обработан. Добавлено {descriptions.Count} элемента(ов).");
             }
             catch(Exception ex)
             {
