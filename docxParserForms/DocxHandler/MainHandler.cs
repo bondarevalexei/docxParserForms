@@ -1,55 +1,58 @@
 ﻿using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using System.Text;
+using System.Data.SqlClient;
 using System.Drawing.Imaging;
-using System.Diagnostics;
-using docxParserForms.Db.Context;
 
 namespace docxParserForms.DocxHandler
 {
     public class MainHandler
     {
-        private ModelsDbContext _db = new ModelsDbContext();
+        private readonly string _connectionString;
 
-        public string ReadText(string filepath)
+        public MainHandler(string connectionString) =>
+            _connectionString = connectionString;
+
+        public void HandleFile(string filepath)
         {
-            string text = string.Empty;
+            List<Bitmap> images = new();
+            List<string> descriptions = new();
 
             using (WordprocessingDocument wordDocument =
                 WordprocessingDocument.Open(filepath, false))
             {
                 Body body = wordDocument.MainDocumentPart.Document.Body;
-                foreach (var paragraph in body.Elements<Paragraph>())
-                {
-                    foreach (var run in paragraph.Elements<Run>())
-                    {
-                        text += run.InnerText;
-                    }
-                    text += Environment.NewLine;
-                }
 
-                var splittedText = text.Split(Environment.NewLine);
-
-                List<string> images = new ();
-                int imageCounter = 0;
-                foreach (var line in splittedText)
-                {
-                    if (line.StartsWith("Рисунок"))
-                        imageCounter++;
-                }
-
+                descriptions = GetDescriptions(body);
                 images = ExtractImages(body, wordDocument.MainDocumentPart);
-                foreach(var image in images)
-                {
-                    text += image + Environment.NewLine;
-                }
             }
 
-            return text;
+            SaveToDb(descriptions, images);
         }
 
-        private List<string> ExtractImages(Body content, MainDocumentPart wDoc)
+        public List<string> GetDescriptions(Body body)
         {
-            List<string> imageList = new();
+            List<string> descriptions = new();
+            string tempText = string.Empty;
+            foreach (var paragraph in body.Elements<Paragraph>())
+            {
+                foreach (var run in paragraph.Elements<Run>())
+                    tempText += run.InnerText;
+                tempText += Environment.NewLine;
+            }
+
+            var splittedText = tempText.Split(Environment.NewLine);
+
+            foreach (var line in splittedText)
+                if (line.StartsWith("Рисунок"))
+                    descriptions.Add(TakeDataFromString(line));
+
+            return descriptions;
+        }
+
+        private List<Bitmap> ExtractImages(Body content, MainDocumentPart wDoc)
+        {
+            List<Bitmap> imageList = new();
 
             foreach (Paragraph par in content.Descendants<Paragraph>())
             {
@@ -67,42 +70,78 @@ namespace docxParserForms.DocxHandler
 
                         var blip = imageFirst.BlipFill.Blip.Embed.Value;
 
-                        string folder = Path.GetDirectoryName(
-                            Process.GetCurrentProcess().MainModule.FileName);
-
                         ImagePart img = (ImagePart)wDoc.Document.MainDocumentPart
                             .GetPartById(blip);
 
-                        string imageFileName = string.Empty;
-
-                        using (Image toSaveImage = Bitmap.FromStream(img.GetStream()))
-                        {
-                            imageFileName = folder + @"\TestFiles\TestExtractor_" 
-                                + DateTime.Now.Month.ToString().Trim() 
-                                    + DateTime.Now.Day.ToString() 
-                                        + DateTime.Now.Year.ToString() 
-                                            + DateTime.Now.Hour.ToString() 
-                                                + DateTime.Now.Minute.ToString()
-                                                    + DateTime.Now.Second.ToString() 
-                                                        + DateTime.Now.Millisecond.ToString() 
-                                                            + ".png";
-
-                            try
-                            {
-                                toSaveImage.Save(imageFileName, ImageFormat.Png);
-                            }
-                            catch (Exception ex) 
-                            {
-                                MessageBox.Show(ex.Message);
-                            }
-                        }
-
-                        imageList.Add(imageFileName);
+                        using Image resultImage = Bitmap.FromStream(img.GetStream());
+                        imageList.Add(new Bitmap(resultImage));
                     }
                 }
             }
 
             return imageList;
         }
+
+        private static string TakeDataFromString(string line)
+        {
+            var splittedLine = line.Split(' ');
+            bool flag = false;
+            var sb = new StringBuilder();
+
+            for (var i = 0; i < splittedLine.Length; i++)
+            {
+                if (int.TryParse(splittedLine[i], out _))
+                {
+                    flag = true;
+                    continue;
+                }
+
+                if (flag)
+                    sb.Append(splittedLine[i] + " ");
+            }
+
+            if (!flag) return line[9..];
+            return sb.ToString();
+        }
+
+        private void SaveToDb(List<string> descriptions, List<Bitmap> images)
+        {
+            var count = descriptions.Count;
+
+            for (int i = 0; i < count; i++)
+            {
+                using (var connection = new SqlConnection(_connectionString))
+                {
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.CommandText = "INSERT INTO parser_db (description, image) VALUES (@description, @image)";
+
+                        using var memoryStream = new MemoryStream();
+                        {
+                            images[i].Save(memoryStream, ImageFormat.Jpeg);
+                            memoryStream.Position = 0;
+
+                            var sqlImageParam = new SqlParameter(
+                                "@image", System.Data.SqlDbType.VarBinary, (int)memoryStream.Length)
+                            {
+                                Value = memoryStream.ToArray()
+                            };
+
+                            var sqlDescriptionParam = new SqlParameter(
+                                "@description", System.Data.SqlDbType.VarChar, descriptions[i].Length)
+                            {
+                                Value = descriptions[i].ToString()
+                            };
+
+                            command.Parameters.Add(sqlDescriptionParam);
+                            command.Parameters.Add(sqlImageParam);
+                        }
+                        connection.Open();
+                        command.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+
     }
 }

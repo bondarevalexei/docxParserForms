@@ -1,16 +1,16 @@
-using docxParserForms.Db;
 using docxParserForms.DocxHandler;
-using Microsoft.EntityFrameworkCore;
 
 namespace docxParserForms
 {
     public partial class Form1 : Form
     {
-        MainHandler _handlerDocx = new MainHandler();
+        MainHandler _handlerDocx;
+        private string _connection = @"Data Source=ALEXEI;Initial Catalog=DocxParserDB;Integrated Security=True";
 
         public Form1()
         {
             InitializeComponent();
+            _handlerDocx = new MainHandler(_connection);
 
             button1.DoubleClick += new EventHandler(button1_Click);
 
@@ -27,8 +27,7 @@ namespace docxParserForms
                 richTextBox1.Clear();
                 foreach(string file in openFileDialog1.FileNames)
                 {
-                    richTextBox1.Text += _handlerDocx.ReadText(file);
-                    richTextBox1.Text += "\n";
+                    _handlerDocx.HandleFile(file);
                 }
 
                 CheckForEmptyTextBox();
@@ -46,7 +45,7 @@ namespace docxParserForms
                     foreach (var item in list)
                     {
                         if (item.EndsWith(".docx"))
-                            richTextBox1.Text += _handlerDocx.ReadText(item);
+                            _handlerDocx.HandleFile(item);
                     }
 
                     CheckForEmptyTextBox();
