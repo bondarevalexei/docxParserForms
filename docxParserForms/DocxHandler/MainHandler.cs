@@ -123,7 +123,8 @@ namespace docxParserForms.DocxHandler
                 {
                     using (var command = connection.CreateCommand())
                     {
-                        command.CommandText = "INSERT INTO parser_db (description, image) VALUES (@description, @image)";
+                        command.CommandText = 
+                            "INSERT INTO parser_db (description, image) VALUES (@description, @image)";
 
                         using var memoryStream = new MemoryStream();
                         {
@@ -151,6 +152,5 @@ namespace docxParserForms.DocxHandler
                 }
             }
         }
-
     }
 }

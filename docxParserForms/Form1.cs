@@ -5,7 +5,8 @@ namespace docxParserForms
     public partial class Form1 : Form
     {
         MainHandler _handlerDocx;
-        private string _connection = @"Data Source=ALEXEI;Initial Catalog=DocxParserDB;Integrated Security=True";
+        private string _connection = 
+            @"Data Source=ALEXEI;Initial Catalog=DocxParserDB;Integrated Security=True";
 
         public Form1()
         {
