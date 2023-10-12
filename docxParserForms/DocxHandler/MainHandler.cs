@@ -24,72 +24,92 @@ namespace docxParserForms.DocxHandler
                     WordprocessingDocument.Open(filepath, false))
                 {
                     Body body = wordDocument.MainDocumentPart.Document.Body;
+                    bool flag = false;
 
-                    descriptions = GetDescriptions(body);
-                    images = ExtractImages(body, wordDocument.MainDocumentPart);
+                    Bitmap? imageBitmap = null;
+                    string? description = null;
+                    int paragraphCounter = 0, imageCounter = 0;
+
+                    foreach (Paragraph paragraph in body.Descendants<Paragraph>())
+                    {
+                        paragraphCounter++;
+                        ParagraphProperties paragraphProperties = paragraph.ParagraphProperties;
+                        foreach (Run run in paragraph.Descendants<Run>())
+                        {
+                            Drawing image =
+                                run.Descendants<Drawing>().FirstOrDefault();
+
+                            if (image != null && image.Inline != null)
+                            {
+                                imageBitmap = new Bitmap(ExtractImage(wordDocument.MainDocumentPart, image));
+                            }
+                            else
+                            {
+                                flag = true;
+                                break;
+                            }
+                        }
+
+                        if (flag)
+                        {
+                            description = GetDescription(paragraph);
+                            flag = false;
+                        }
+
+                        if (imageBitmap != null && description != null)
+                        {
+                            images.Add(imageBitmap);
+                            descriptions.Add(description);
+
+                            (imageBitmap, description) = (null, null);
+                        }
+
+                        if(paragraphCounter > 1 && flag)
+                            (imageBitmap, description) = (null, null);
+                    }
                 }
 
                 SaveToDb(descriptions, images);
-
                 MessageBox.Show($"Файл {filepath} успешно обработан. Добавлено {descriptions.Count} элемента(ов).");
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
             }
         }
 
-        public List<string> GetDescriptions(Body body)
+        private string? GetDescription(Paragraph paragraph)
         {
-            List<string> descriptions = new();
-            string tempText = string.Empty;
-            foreach (var paragraph in body.Elements<Paragraph>())
-            {
-                foreach (var run in paragraph.Elements<Run>())
-                    tempText += run.InnerText;
-                tempText += Environment.NewLine;
-            }
+            var stringBuilder = new StringBuilder();
 
-            var splittedText = tempText.Split(Environment.NewLine);
+            foreach (var run in paragraph.Elements<Run>())
+                stringBuilder.Append(run.InnerText);
+
+            var splittedText = stringBuilder.ToString().Split(Environment.NewLine);
 
             foreach (var line in splittedText)
-                if (line.StartsWith("Рисунок"))
-                    descriptions.Add(TakeDataFromString(line));
+                if (line.StartsWith("Рисунок", StringComparison.OrdinalIgnoreCase))
+                    return TakeDataFromString(line);
 
-            return descriptions;
+            return null;
         }
 
-        private List<Bitmap> ExtractImages(Body content, MainDocumentPart wDoc)
+        private Bitmap ExtractImage(MainDocumentPart wDoc, Drawing image)
         {
-            List<Bitmap> imageList = new();
+            var imageFirst = image.Inline.Graphic.GraphicData
+                .Descendants<DocumentFormat.OpenXml.Drawing.Pictures
+                    .Picture>().FirstOrDefault();
 
-            foreach (Paragraph par in content.Descendants<Paragraph>())
-            {
-                ParagraphProperties paragraphProperties = par.ParagraphProperties;
-                foreach (Run run in par.Descendants<Run>())
-                {
-                    Drawing image =
-                        run.Descendants<Drawing>().FirstOrDefault();
+            var blip = imageFirst.BlipFill.Blip.Embed.Value;
 
-                    if (image != null)
-                    {
-                        var imageFirst = image.Inline.Graphic.GraphicData
-                            .Descendants<DocumentFormat.OpenXml.Drawing.Pictures
-                                .Picture>().FirstOrDefault();
+            ImagePart img = (ImagePart)wDoc.Document.MainDocumentPart
+                .GetPartById(blip);
 
-                        var blip = imageFirst.BlipFill.Blip.Embed.Value;
-
-                        ImagePart img = (ImagePart)wDoc.Document.MainDocumentPart
-                            .GetPartById(blip);
-
-                        using Image resultImage = Bitmap.FromStream(img.GetStream());
-                        imageList.Add(new Bitmap(resultImage));
-                    }
-                }
-            }
-
-            return imageList;
+            using Image resultImage = Bitmap.FromStream(img.GetStream());
+            return new Bitmap(resultImage);
         }
+
+
 
         private static string TakeDataFromString(string line)
         {
@@ -123,7 +143,7 @@ namespace docxParserForms.DocxHandler
                 {
                     using (var command = connection.CreateCommand())
                     {
-                        command.CommandText = 
+                        command.CommandText =
                             "INSERT INTO parser_db (description, image) VALUES (@description, @image)";
 
                         using var memoryStream = new MemoryStream();
