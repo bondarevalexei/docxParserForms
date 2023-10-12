@@ -64,7 +64,7 @@ namespace docxParserForms.DocxHandler
                             (imageBitmap, description) = (null, null);
                         }
 
-                        if(paragraphCounter > 1 && flag)
+                        if (paragraphCounter > 1 && flag)
                             (imageBitmap, description) = (null, null);
                     }
                 }
@@ -114,23 +114,21 @@ namespace docxParserForms.DocxHandler
         private static string TakeDataFromString(string line)
         {
             var splittedLine = line.Split(' ');
-            bool flag = false;
             var sb = new StringBuilder();
+            var separators = ".,;:-+*/\\";
 
             for (var i = 0; i < splittedLine.Length; i++)
             {
-                if (int.TryParse(splittedLine[i], out _))
-                {
-                    flag = true;
+                if (splittedLine[i].StartsWith("Рисунок", StringComparison.OrdinalIgnoreCase)
+                    || splittedLine[i].Length == 0
+                    || int.TryParse(splittedLine[i], out _) 
+                    || separators.Contains(splittedLine[i].ToCharArray()[0].ToString()) )
                     continue;
-                }
-
-                if (flag)
-                    sb.Append(splittedLine[i] + " ");
+                else
+                    sb.Append(splittedLine[i]);
             }
 
-            if (!flag) return line[9..].Trim();
-            return sb.ToString();
+            return sb.ToString().Trim();
         }
 
         private void SaveToDb(List<string> descriptions, List<Bitmap> images)
