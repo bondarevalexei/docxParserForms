@@ -1,20 +1,30 @@
 using docxParserForms.DocxHandler;
+using Newtonsoft.Json.Linq;
 
 namespace docxParserForms
 {
     public partial class Form1 : Form
     {
         MainHandler _handlerDocx;
-        private string _connection = 
-            @"Data Source=ALEXEI;Initial Catalog=DocxParserDB;Integrated Security=True";
+        private string _connection;
 
         public Form1()
         {
             InitializeComponent();
+            InitializingElements();
+        }
+
+        private void InitializingElements()
+        {
+            using (StreamReader sr = new("./../../../appsettings.json"))
+            {
+                string json = sr.ReadToEnd();
+                dynamic data = JObject.Parse(json);
+                _connection = data.connectionString;
+            }
+
             _handlerDocx = new MainHandler(_connection);
-
             button1.DoubleClick += new EventHandler(button1_Click);
-
             richTextBox1.AllowDrop = true;
             richTextBox1.DragDrop += new DragEventHandler(richTextBox1_DragDrop);
 
