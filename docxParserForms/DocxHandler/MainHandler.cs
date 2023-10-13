@@ -23,50 +23,7 @@ namespace docxParserForms.DocxHandler
                 using (WordprocessingDocument wordDocument =
                     WordprocessingDocument.Open(filepath, false))
                 {
-                    Body body = wordDocument.MainDocumentPart.Document.Body;
-                    bool flag = false;
-
-                    Bitmap? imageBitmap = null;
-                    string? description = null;
-                    int paragraphCounter = 0, imageCounter = 0;
-
-                    foreach (Paragraph paragraph in body.Descendants<Paragraph>())
-                    {
-                        paragraphCounter++;
-                        ParagraphProperties paragraphProperties = paragraph.ParagraphProperties;
-                        foreach (Run run in paragraph.Descendants<Run>())
-                        {
-                            Drawing image =
-                                run.Descendants<Drawing>().FirstOrDefault();
-
-                            if (image != null && image.Inline != null)
-                            {
-                                imageBitmap = new Bitmap(ExtractImage(wordDocument.MainDocumentPart, image));
-                            }
-                            else
-                            {
-                                flag = true;
-                                break;
-                            }
-                        }
-
-                        if (flag)
-                        {
-                            description = GetDescription(paragraph);
-                            flag = false;
-                        }
-
-                        if (imageBitmap != null && description != null)
-                        {
-                            images.Add(imageBitmap);
-                            descriptions.Add(description);
-
-                            (imageBitmap, description) = (null, null);
-                        }
-
-                        if (paragraphCounter > 1 && flag)
-                            (imageBitmap, description) = (null, null);
-                    }
+                    HandleParagraphsInBody(wordDocument, images, descriptions);
                 }
 
                 SaveToDb(descriptions, images);
@@ -76,6 +33,61 @@ namespace docxParserForms.DocxHandler
             {
                 MessageBox.Show(ex.Message);
             }
+        }
+
+        private void HandleParagraphsInBody(WordprocessingDocument wordDocument, 
+            List<Bitmap> images, List<string> descriptions)
+        {
+            Body body = wordDocument.MainDocumentPart.Document.Body;
+            bool flag = false;
+
+            Bitmap? imageBitmap = null;
+            string? description = null;
+            int paragraphCounter = 0;
+
+            foreach (Paragraph paragraph in body.Descendants<Paragraph>())
+            {
+                paragraphCounter++;
+                ParagraphProperties paragraphProperties = paragraph.ParagraphProperties;
+                foreach (Run run in paragraph.Descendants<Run>())
+                {
+                    Drawing image =
+                        run.Descendants<Drawing>().FirstOrDefault();
+
+                    if (image != null && image.Inline != null)
+                        imageBitmap = new Bitmap(ExtractImage(wordDocument.MainDocumentPart, image));
+                    else
+                    {
+                        flag = true;
+                        break;
+                    }
+
+                }
+
+                if (flag)
+                {
+                    description = GetDescription(paragraph);
+                    flag = false;
+                }
+
+                if (AddNewLineToLists(images, descriptions, imageBitmap, description) 
+                    || paragraphCounter > 1 && flag)
+                    (imageBitmap, description) = (null, null);
+            }
+        }
+
+        private bool AddNewLineToLists(List<Bitmap> images, 
+            List<string> descriptions, Bitmap? imageBitmap, string? description) 
+        {
+            if (imageBitmap != null && description != null)
+            {
+                images.Add(imageBitmap);
+                descriptions.Add(description);
+
+                return true;
+            }
+
+            return false;
         }
 
         private string? GetDescription(Paragraph paragraph)
@@ -109,8 +121,6 @@ namespace docxParserForms.DocxHandler
             return new Bitmap(resultImage);
         }
 
-
-
         private static string TakeDataFromString(string line)
         {
             var splittedLine = line.Split(' ');
@@ -121,11 +131,14 @@ namespace docxParserForms.DocxHandler
             {
                 if (splittedLine[i].StartsWith("Рисунок", StringComparison.OrdinalIgnoreCase)
                     || splittedLine[i].Length == 0
-                    || int.TryParse(splittedLine[i], out _) 
-                    || separators.Contains(splittedLine[i].ToCharArray()[0].ToString()) )
+                    || int.TryParse(splittedLine[i], out _)
+                    || separators.Contains(splittedLine[i].ToCharArray()[0].ToString()))
                     continue;
                 else
+                {
                     sb.Append(splittedLine[i]);
+                    sb.Append(' ');
+                }
             }
 
             return sb.ToString().Trim();
