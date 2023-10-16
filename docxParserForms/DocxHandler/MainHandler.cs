@@ -103,7 +103,7 @@ namespace docxParserForms.DocxHandler
 
 
                 if (tempDescriptionsCount < tempImagesCount)
-                    HandleDescriptionToImages(descriptionsInParagraph, imagesInPargraph);
+                    HandleDescriptionToImages(descriptionsInParagraph);
 
                 if (AddNewLinesToLists(images, descriptions, imagesInPargraph, descriptionsInParagraph)
                     || paragraphCounter > 1)
@@ -115,9 +115,47 @@ namespace docxParserForms.DocxHandler
             }
         }
 
-        private void HandleDescriptionToImages(List<string> dscriptions, List<Bitmap> images)
+        private void HandleDescriptionToImages(List<string> descriptions)
         {
+            List<string> temp = new();
+            temp.AddRange(descriptions);
+            descriptions.Clear();
 
+            var separators = _splitExample.Split("; ");
+            separators = separators.Where(sep => sep != null || sep?.Length != 0).ToArray();
+
+            int sepIndex = 0, curIndex = 0;
+
+            for (int i = 0; i < temp.Count; i++)
+            {
+                if (temp[i].Contains(separators[sepIndex]))
+                {
+                    curIndex = temp[i].IndexOf(separators[sepIndex]);
+                    while (true)
+                    {
+                        sepIndex++;
+
+                        StringBuilder tempString = new();
+                        var splittedDescr = temp[i].Split(' ');
+
+                        while (curIndex < splittedDescr.Length && splittedDescr[curIndex] != separators[sepIndex])
+                        {
+                            tempString.Append(splittedDescr[curIndex++]).Append(' ');
+                        }
+
+                        descriptions.Add(TakeDataFromString(tempString.ToString()));
+                        curIndex++;
+
+                        if (curIndex >= splittedDescr.Length - 1)
+                            break;
+                    }
+                }
+                else
+                {
+                    sepIndex = 0;
+                    descriptions.Add(temp[i]);
+                }
+            }
         }
 
         private bool AddNewLinesToLists(List<Bitmap> images,
@@ -183,7 +221,7 @@ namespace docxParserForms.DocxHandler
                 }
             }
 
-            if(sb.ToString().StartsWith("SEQ ARABIC"))
+            if (sb.ToString().StartsWith("SEQ ARABIC"))
                 sb.Remove(0, 10);
 
             return sb.ToString().Trim();
