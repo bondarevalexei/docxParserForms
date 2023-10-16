@@ -97,13 +97,19 @@ namespace docxParserForms.DocxHandler
                 }
 
                 descriptionsInParagraph = descriptionsInParagraph.Where(description => description != null).ToList();
-                int tempDescriptionsCount = descriptionsInParagraph.Count, tempImagesCount = imagesInPargraph.Count;
                 if (descriptionsInParagraph.Count == 0)
                     continue;
 
-
-                if (tempDescriptionsCount < tempImagesCount)
+                if (descriptionsInParagraph.Count < imagesInPargraph.Count)
                     HandleDescriptionToImages(descriptionsInParagraph);
+
+                if (descriptionsInParagraph.Count != imagesInPargraph.Count)
+                {
+                    (imageBitmap, description) = (null, null);
+                    imagesInPargraph.Clear();
+                    descriptionsInParagraph.Clear();
+                }
+
 
                 if (AddNewLinesToLists(images, descriptions, imagesInPargraph, descriptionsInParagraph)
                     || paragraphCounter > 1)
