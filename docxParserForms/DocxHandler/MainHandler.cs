@@ -4,6 +4,9 @@ using System.Text;
 using System.Data.SqlClient;
 using System.Drawing.Imaging;
 
+// TODO: Make JSON parser here (important)
+// TODO: Create method to Apply 1 description to many images
+
 namespace docxParserForms.DocxHandler
 {
     public class MainHandler
@@ -13,10 +16,11 @@ namespace docxParserForms.DocxHandler
         public MainHandler(string connectionString) =>
             _connectionString = connectionString;
 
-        public void HandleFile(string filepath)
+        public List<Model> HandleFile(string filepath)
         {
             List<Bitmap> images = new();
             List<string> descriptions = new();
+            List<Model> models = new();
 
             try
             {
@@ -26,16 +30,29 @@ namespace docxParserForms.DocxHandler
                     HandleParagraphsInBody(wordDocument, images, descriptions);
                 }
 
-                SaveToDb(descriptions, images);
+                WriteDataInModelsList(images, descriptions, models);
+
+                //SaveToDb(descriptions, images);
                 MessageBox.Show($"Файл {filepath} успешно обработан. Добавлено {descriptions.Count} элемента(ов).");
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
             }
+
+            return models;
         }
 
-        private void HandleParagraphsInBody(WordprocessingDocument wordDocument, 
+        private void WriteDataInModelsList(List<Bitmap> images,
+            List<string> descriptions, List<Model> models)
+        {
+            for (int i = 0; i < descriptions.Count; i++)
+            {
+                models.Add(new Model { Description = descriptions[i], Image = images[i] });
+            }
+        }
+
+        private void HandleParagraphsInBody(WordprocessingDocument wordDocument,
             List<Bitmap> images, List<string> descriptions)
         {
             Body body = wordDocument.MainDocumentPart.Document.Body;
@@ -64,8 +81,11 @@ namespace docxParserForms.DocxHandler
                     else
                     {
                         description = GetDescription(paragraph);
-                        if (description != null || description?.Trim().Length != 0)
-                            descriptionsInParagraph.Add(description);
+                        if (description == null || description?.Trim().Length == 0)
+                            continue;
+
+                        descriptionsInParagraph.Add(description);
+                        break;
                     }
                 }
 
@@ -75,10 +95,10 @@ namespace docxParserForms.DocxHandler
                     continue;
 
 
-                if(tempDescriptionsCount < tempImagesCount)
+                if (tempDescriptionsCount < tempImagesCount)
                     HandleDescriptionToImages(descriptionsInParagraph, imagesInPargraph);
 
-                if (AddNewLinesToLists(images, descriptions, imagesInPargraph, descriptionsInParagraph) 
+                if (AddNewLinesToLists(images, descriptions, imagesInPargraph, descriptionsInParagraph)
                     || paragraphCounter > 1)
                     (imageBitmap, description) = (null, null);
             }
@@ -89,8 +109,8 @@ namespace docxParserForms.DocxHandler
 
         }
 
-        private bool AddNewLinesToLists(List<Bitmap> images, 
-            List<string> descriptions, List<Bitmap> tempImages, List<string> tempDescriptions) 
+        private bool AddNewLinesToLists(List<Bitmap> images,
+            List<string> descriptions, List<Bitmap> tempImages, List<string> tempDescriptions)
         {
             foreach (var description in tempDescriptions)
                 descriptions.Add(description);
@@ -151,6 +171,9 @@ namespace docxParserForms.DocxHandler
                     sb.Append(' ');
                 }
             }
+
+            if(sb.ToString().StartsWith("SEQ ARABIC"))
+                sb.Remove(0, 10);
 
             return sb.ToString().Trim();
         }

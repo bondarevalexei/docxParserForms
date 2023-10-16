@@ -7,6 +7,9 @@ namespace docxParserForms
     {
         MainHandler _handlerDocx;
         private string _connection;
+        private int _count = 0;
+        private int _index = 0;
+        private List<Model> _modelList = new();
 
         public Form1()
         {
@@ -27,9 +30,6 @@ namespace docxParserForms
             button1.DoubleClick += new EventHandler(button1_Click);
             richTextBox1.AllowDrop = true;
             richTextBox1.DragDrop += new DragEventHandler(richTextBox1_DragDrop);
-
-            foreach (Control ctrl in this.Controls)
-                ctrl.Font = new Font("Comic Sans", ctrl.Font.Size + 5);
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -40,7 +40,13 @@ namespace docxParserForms
             {
                 richTextBox1.Clear();
                 foreach (string file in openFileDialog1.FileNames)
-                    _handlerDocx.HandleFile(file);
+                    _modelList.AddRange(_handlerDocx.HandleFile(file));
+
+                _count = _modelList.Count;
+                if (_count > 0)
+                {
+                    ShowModel(_modelList[0]);
+                }
 
                 CheckForEmptyTextBox();
             }
@@ -71,5 +77,58 @@ namespace docxParserForms
 
         private void richTextBox1_TextChanged(object sender, EventArgs e) =>
             richTextBox1.Text = "Перетащите файлы или воспользуйтесь кнопкой.";
+
+        private void prevButton_Click(object sender, EventArgs e)
+        {
+            CheckButtons();
+
+            if (prevButton.Enabled)
+                _index--;
+
+            if (_count > 0) ShowModel(_modelList[_index]);
+        }
+
+        private void nextButton_Click(object sender, EventArgs e)
+        {
+            CheckButtons();
+
+            if (nextButton.Enabled)
+                _index++;
+
+            if (_count > 0) ShowModel(_modelList[_index]);
+        }
+
+        private void CheckButtons()
+        {
+            if (_count > 0)
+            {
+                if (_index == 0 && _index == _count - 1)
+                {
+                    prevButton.Enabled = false;
+                    nextButton.Enabled = false;
+                }
+                else if (_index == 0)
+                {
+                    prevButton.Enabled = false;
+                    nextButton.Enabled = true;
+                }
+                else if (_index == _count - 1)
+                {
+                    prevButton.Enabled = true;
+                    nextButton.Enabled = false;
+                }
+                else
+                {
+                    prevButton.Enabled = true;
+                    nextButton.Enabled = true;
+                }
+            }
+        }
+
+        private void ShowModel(Model model)
+        {
+            descriptionBox.Text = model.Description;
+            pictureBox.Image = model.Image;
+        }
     }
 }
