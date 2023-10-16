@@ -3,8 +3,8 @@ using DocumentFormat.OpenXml.Wordprocessing;
 using System.Text;
 using System.Data.SqlClient;
 using System.Drawing.Imaging;
+using Newtonsoft.Json.Linq;
 
-// TODO: Make JSON parser here (important)
 // TODO: Create method to Apply 1 description to many images
 
 namespace docxParserForms.DocxHandler
@@ -12,9 +12,18 @@ namespace docxParserForms.DocxHandler
     public class MainHandler
     {
         private readonly string _connectionString;
+        private readonly string _splitExample;
 
-        public MainHandler(string connectionString) =>
-            _connectionString = connectionString;
+        public MainHandler()
+        {
+            using (StreamReader sr = new("./../../../appsettings.json"))
+            {
+                string json = sr.ReadToEnd();
+                dynamic data = JObject.Parse(json);
+                _connectionString = data.connectionString;
+                _splitExample = data.splitExample;
+            }
+        }
 
         public List<Model> HandleFile(string filepath)
         {
@@ -47,9 +56,7 @@ namespace docxParserForms.DocxHandler
             List<string> descriptions, List<Model> models)
         {
             for (int i = 0; i < descriptions.Count; i++)
-            {
                 models.Add(new Model { Description = descriptions[i], Image = images[i] });
-            }
         }
 
         private void HandleParagraphsInBody(WordprocessingDocument wordDocument,
@@ -100,7 +107,11 @@ namespace docxParserForms.DocxHandler
 
                 if (AddNewLinesToLists(images, descriptions, imagesInPargraph, descriptionsInParagraph)
                     || paragraphCounter > 1)
+                {
                     (imageBitmap, description) = (null, null);
+                    imagesInPargraph.Clear();
+                    descriptionsInParagraph.Clear();
+                }
             }
         }
 
@@ -152,7 +163,7 @@ namespace docxParserForms.DocxHandler
             return new Bitmap(resultImage);
         }
 
-        private static string TakeDataFromString(string line)
+        private string TakeDataFromString(string line)
         {
             var splittedLine = line.Split(' ');
             var sb = new StringBuilder();

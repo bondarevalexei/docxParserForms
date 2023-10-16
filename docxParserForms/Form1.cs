@@ -6,7 +6,6 @@ namespace docxParserForms
     public partial class Form1 : Form
     {
         MainHandler _handlerDocx;
-        private string _connection;
         private int _count = 0;
         private int _index = 0;
         private List<Model> _modelList = new();
@@ -19,17 +18,11 @@ namespace docxParserForms
 
         private void InitializingElements()
         {
-            using (StreamReader sr = new("./../../../appsettings.json"))
-            {
-                string json = sr.ReadToEnd();
-                dynamic data = JObject.Parse(json);
-                _connection = data.connectionString;
-            }
-
-            _handlerDocx = new MainHandler(_connection);
+            _handlerDocx = new MainHandler();
             button1.DoubleClick += new EventHandler(button1_Click);
             richTextBox1.AllowDrop = true;
             richTextBox1.DragDrop += new DragEventHandler(richTextBox1_DragDrop);
+            CheckButtons();
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -48,6 +41,7 @@ namespace docxParserForms
                     ShowModel(_modelList[0]);
                 }
 
+                CheckButtons();
                 CheckForEmptyTextBox();
             }
         }
@@ -80,20 +74,18 @@ namespace docxParserForms
 
         private void prevButton_Click(object sender, EventArgs e)
         {
-            CheckButtons();
-
             if (prevButton.Enabled)
                 _index--;
+            CheckButtons();
 
             if (_count > 0) ShowModel(_modelList[_index]);
         }
 
         private void nextButton_Click(object sender, EventArgs e)
         {
-            CheckButtons();
-
             if (nextButton.Enabled)
                 _index++;
+            CheckButtons();
 
             if (_count > 0) ShowModel(_modelList[_index]);
         }
@@ -122,6 +114,11 @@ namespace docxParserForms
                     prevButton.Enabled = true;
                     nextButton.Enabled = true;
                 }
+            }
+            else
+            {
+                prevButton.Enabled = false;
+                nextButton.Enabled = false;
             }
         }
 
