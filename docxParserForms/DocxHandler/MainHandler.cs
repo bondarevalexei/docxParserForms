@@ -4,6 +4,8 @@ using System.Text;
 using System.Data.SqlClient;
 using System.Drawing.Imaging;
 using Newtonsoft.Json.Linq;
+using Paragraph = DocumentFormat.OpenXml.Wordprocessing.Paragraph;
+using Run = DocumentFormat.OpenXml.Wordprocessing.Run;
 
 namespace docxParserForms.DocxHandler
 {
@@ -69,6 +71,8 @@ namespace docxParserForms.DocxHandler
             Bitmap? imageBitmap = null;
             string? description = null;
             int paragraphCounter = 0;
+            int imageFlag = 0;
+            int allImages = 0;
 
             foreach (Paragraph paragraph in body.Descendants<Paragraph>())
             {
@@ -80,14 +84,28 @@ namespace docxParserForms.DocxHandler
                         run.Descendants<Drawing>().FirstOrDefault();
 
                     if (image != null && image.Inline != null)
+
                     {
+                        allImages++;
+                        if (imagesInPargraph.Count > 0 && paragraphCounter > imageFlag)
+                        {
+                            descriptionsInParagraph.Add("");
+                            AddNewLinesToLists(images, descriptions, imagesInPargraph, descriptionsInParagraph);
+                            ClearTempData(ref imageBitmap, ref description, imagesInPargraph,
+                                descriptionsInParagraph, ref paragraphCounter, ref imageFlag);
+                        }
+
                         imageBitmap = new Bitmap(ExtractImage(wordDocument.MainDocumentPart, image));
                         imagesInPargraph.Add(imageBitmap);
+                        imageFlag = paragraphCounter;
                     }
                     else
                     {
                         description = GetDescription(paragraph);
-                        if (description == null || description?.Trim().Length == 0)
+                        if (description == null
+                            || description?.Trim().Length == 0
+                            || descriptionsInParagraph.Count != 0
+                            && String.Compare(description, descriptionsInParagraph[^1]) == 0)
                             continue;
 
                         descriptionsInParagraph.Add(description);
@@ -99,28 +117,34 @@ namespace docxParserForms.DocxHandler
                 if (descriptionsInParagraph.Count == 0)
                     continue;
 
-                if (descriptionsInParagraph.Count < imagesInPargraph.Count)
-                    HandleDescriptionToImages(descriptionsInParagraph);
-
-                if (descriptionsInParagraph.Count != imagesInPargraph.Count)
+                if (imagesInPargraph.Count == 0)
                 {
-                    (imageBitmap, description) = (null, null);
-                    imagesInPargraph.Clear();
+                    paragraphCounter = 0;
                     descriptionsInParagraph.Clear();
                 }
 
+                if (descriptionsInParagraph.Count < imagesInPargraph.Count)
+                    HandleDescriptionToImages(descriptionsInParagraph, imagesInPargraph.Count);
 
                 if (AddNewLinesToLists(images, descriptions, imagesInPargraph, descriptionsInParagraph)
                     || paragraphCounter > 1)
-                {
-                    (imageBitmap, description) = (null, null);
-                    imagesInPargraph.Clear();
-                    descriptionsInParagraph.Clear();
-                }
+                    ClearTempData(ref imageBitmap, ref description, imagesInPargraph,
+                                    descriptionsInParagraph, ref paragraphCounter, ref imageFlag);
             }
         }
 
-        private void HandleDescriptionToImages(List<string> descriptions)
+        private void ClearTempData(ref Bitmap? imageBitmap, ref string? description,
+            List<Bitmap> imagesInParagraph, List<string> descriptionsInParagraph,
+                ref int paragraphCounter, ref int imageFlag)
+        {
+            (imageBitmap, description) = (null, null);
+            imagesInParagraph.Clear();
+            descriptionsInParagraph.Clear();
+            paragraphCounter = 0;
+            imageFlag = 0;
+        }
+
+        private void HandleDescriptionToImages(List<string> descriptions, int imagesCount)
         {
             List<string> temp = new();
             temp.AddRange(descriptions);
@@ -187,12 +211,9 @@ namespace docxParserForms.DocxHandler
             foreach (var line in splittedText)
             {
                 var splittedLine = line.Split(' ');
-                if (_keyWords.Contains(splittedLine[0]))
+                if (splittedLine[0].Trim().Length > 3 && _keyWords.Contains(splittedLine[0]))
                     return TakeDataFromString(splittedLine, splittedLine[0]);
             }
-
-               // if (line.StartsWith("Рисунок", StringComparison.OrdinalIgnoreCase))
-                 //   return TakeDataFromString(line);
 
             return null;
         }
