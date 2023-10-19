@@ -31,16 +31,17 @@ namespace docxParserForms.DocxHandler
             List<Bitmap> images = new();
             List<string> descriptions = new();
             List<Model> models = new();
+            List<string> imageTypes = new();
 
             try
             {
                 using (WordprocessingDocument wordDocument =
                     WordprocessingDocument.Open(filepath, false))
                 {
-                    HandleParagraphsInBody(wordDocument, images, descriptions);
+                    HandleParagraphsInBody(wordDocument, images, descriptions, imageTypes);
                 }
 
-                WriteDataInModelsList(images, descriptions, models);
+                WriteDataInModelsList(images, descriptions, models, filepath, imageTypes);
 
                 //SaveToDb(descriptions, images);
                 MessageBox.Show($"Файл {filepath} успешно обработан. Добавлено {descriptions.Count} элемента(ов).");
@@ -54,14 +55,23 @@ namespace docxParserForms.DocxHandler
         }
 
         private void WriteDataInModelsList(List<Bitmap> images,
-            List<string> descriptions, List<Model> models)
+            List<string> descriptions, List<Model> models, string path,
+                List<string> imageTypes)
         {
             for (int i = 0; i < descriptions.Count; i++)
-                models.Add(new Model { Description = descriptions[i], Image = images[i] });
+                models.Add(new Model
+                {
+                    Description = descriptions[i],
+                    Image = images[i],
+                    Filename = path.Split('\\')[^1],
+                    ImageFormat = imageTypes[i],
+                    Width = images[i].Width,
+                    Height = images[i].Height,
+                });
         }
 
         private void HandleParagraphsInBody(WordprocessingDocument wordDocument,
-            List<Bitmap> images, List<string> descriptions)
+            List<Bitmap> images, List<string> descriptions, List<string> imageTypes)
         {
             Body body = wordDocument.MainDocumentPart.Document.Body;
 
@@ -95,7 +105,7 @@ namespace docxParserForms.DocxHandler
                                 descriptionsInParagraph, ref paragraphCounter, ref imageFlag);
                         }
 
-                        imageBitmap = new Bitmap(ExtractImage(wordDocument.MainDocumentPart, image));
+                        imageBitmap = new Bitmap(ExtractImage(wordDocument.MainDocumentPart, image, imageTypes));
                         imagesInPargraph.Add(imageBitmap);
                         imageFlag = paragraphCounter;
                     }
@@ -218,7 +228,7 @@ namespace docxParserForms.DocxHandler
             return null;
         }
 
-        private Bitmap ExtractImage(MainDocumentPart wDoc, Drawing image)
+        private Bitmap ExtractImage(MainDocumentPart wDoc, Drawing image, List<string> imageTypes)
         {
             var imageFirst = image.Inline.Graphic.GraphicData
                 .Descendants<DocumentFormat.OpenXml.Drawing.Pictures
@@ -228,6 +238,7 @@ namespace docxParserForms.DocxHandler
 
             ImagePart img = (ImagePart)wDoc.Document.MainDocumentPart
                 .GetPartById(blip);
+            imageTypes.Add(img.ContentType);
 
             using Image resultImage = Bitmap.FromStream(img.GetStream());
             return new Bitmap(resultImage);

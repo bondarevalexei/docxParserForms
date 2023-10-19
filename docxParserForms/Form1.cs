@@ -1,4 +1,6 @@
 using docxParserForms.DocxHandler;
+using System.Text;
+
 namespace docxParserForms
 {
     public partial class Form1 : Form
@@ -107,7 +109,14 @@ namespace docxParserForms
 
         private void ShowModel(Model model)
         {
-            descriptionBox.Text = model.Description;
+            StringBuilder sb = new();
+            sb.Append(model.Description);
+            sb.Append(Environment.NewLine);
+            sb.Append("Filename: " + model.Filename);
+            sb.Append(Environment.NewLine);
+            sb.Append("Size: " + model.Width + "x" + model.Height);
+
+            descriptionBox.Text = sb.ToString().Trim();
             pictureBox.Image = model.Image;
         }
     }
