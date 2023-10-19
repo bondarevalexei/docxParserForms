@@ -1,6 +1,4 @@
 using docxParserForms.DocxHandler;
-using Newtonsoft.Json.Linq;
-
 namespace docxParserForms
 {
     public partial class Form1 : Form
@@ -95,31 +93,16 @@ namespace docxParserForms
             if (_count > 0)
             {
                 if (_index == 0 && _index == _count - 1)
-                {
-                    prevButton.Enabled = false;
-                    nextButton.Enabled = false;
-                }
+                    (prevButton.Enabled, nextButton.Enabled) = (false, false);
                 else if (_index == 0)
-                {
-                    prevButton.Enabled = false;
-                    nextButton.Enabled = true;
-                }
+                    (prevButton.Enabled, nextButton.Enabled) = (false, true);
                 else if (_index == _count - 1)
-                {
-                    prevButton.Enabled = true;
-                    nextButton.Enabled = false;
-                }
+                    (prevButton.Enabled, nextButton.Enabled) = (true, false);
                 else
-                {
-                    prevButton.Enabled = true;
-                    nextButton.Enabled = true;
-                }
+                    (prevButton.Enabled, nextButton.Enabled) = (true, true);
             }
             else
-            {
-                prevButton.Enabled = false;
-                nextButton.Enabled = false;
-            }
+                (prevButton.Enabled, nextButton.Enabled) = (false, false);
         }
 
         private void ShowModel(Model model)

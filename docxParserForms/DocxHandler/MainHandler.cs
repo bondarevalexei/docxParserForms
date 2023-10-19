@@ -5,12 +5,11 @@ using System.Data.SqlClient;
 using System.Drawing.Imaging;
 using Newtonsoft.Json.Linq;
 
-// TODO: Create method to Apply 1 description to many images
-
 namespace docxParserForms.DocxHandler
 {
     public class MainHandler
     {
+        private const string _keyWords = "Картинка Рисунок Рис. Фигура Фиг. Изображение Image Figure";
         private readonly string _connectionString;
         private readonly string _splitExample;
 
@@ -149,7 +148,7 @@ namespace docxParserForms.DocxHandler
                             tempString.Append(splittedDescr[curIndex++]).Append(' ');
                         }
 
-                        descriptions.Add(TakeDataFromString(tempString.ToString()));
+                        descriptions.Add(TakeDataFromString(tempString.ToString().Split(' '), separators[sepIndex]));
                         curIndex++;
 
                         if (curIndex >= splittedDescr.Length - 1)
@@ -186,8 +185,14 @@ namespace docxParserForms.DocxHandler
             var splittedText = stringBuilder.ToString().Split(Environment.NewLine);
 
             foreach (var line in splittedText)
-                if (line.StartsWith("Рисунок", StringComparison.OrdinalIgnoreCase))
-                    return TakeDataFromString(line);
+            {
+                var splittedLine = line.Split(' ');
+                if (_keyWords.Contains(splittedLine[0]))
+                    return TakeDataFromString(splittedLine, splittedLine[0]);
+            }
+
+               // if (line.StartsWith("Рисунок", StringComparison.OrdinalIgnoreCase))
+                 //   return TakeDataFromString(line);
 
             return null;
         }
@@ -207,15 +212,14 @@ namespace docxParserForms.DocxHandler
             return new Bitmap(resultImage);
         }
 
-        private string TakeDataFromString(string line)
+        private string TakeDataFromString(string[] splittedLine, string keyWord)
         {
-            var splittedLine = line.Split(' ');
             var sb = new StringBuilder();
-            var separators = ".,;:-+*/\\";
+            var separators = ".,;:-+*/\\–";
 
             for (var i = 0; i < splittedLine.Length; i++)
             {
-                if (splittedLine[i].StartsWith("Рисунок", StringComparison.OrdinalIgnoreCase)
+                if (splittedLine[i].StartsWith(keyWord, StringComparison.OrdinalIgnoreCase)
                     || splittedLine[i].Length == 0
                     || int.TryParse(splittedLine[i], out _)
                     || separators.Contains(splittedLine[i].ToCharArray()[0].ToString()))
