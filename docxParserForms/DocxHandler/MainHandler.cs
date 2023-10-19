@@ -1,8 +1,8 @@
-﻿using DocumentFormat.OpenXml.Packaging;
+﻿using DocumentFormat.OpenXml.Drawing.Diagrams;
+using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
-using System.Data.SqlClient;
-using System.Drawing.Imaging;
 using Newtonsoft.Json.Linq;
+using System.Drawing.Imaging;
 using Paragraph = DocumentFormat.OpenXml.Wordprocessing.Paragraph;
 using Run = DocumentFormat.OpenXml.Wordprocessing.Run;
 
@@ -41,7 +41,7 @@ namespace docxParserForms.DocxHandler
 
                 WriteDataInModelsList(images, descriptions, models, filepath, imageTypes);
 
-                //SaveToDb(descriptions, images);
+                //DbHandler.SaveToDb(descriptions, images, _connectionString);
                 MessageBox.Show($"Файл {filepath} успешно обработан. Добавлено {descriptions.Count} элемента(ов).");
             }
             catch (Exception ex)
@@ -120,25 +120,36 @@ namespace docxParserForms.DocxHandler
                     }
                 }
 
-                descriptionsInParagraph = descriptionsInParagraph.Where(
-                    description => description != null).ToList();
-                if (descriptionsInParagraph.Count == 0)
+                if (CheckDscriptionsAndImages(descriptionsInParagraph, imagesInPargraph, ref paragraphCounter))
                     continue;
-
-                if (imagesInPargraph.Count == 0)
-                {
-                    paragraphCounter = 0;
-                    descriptionsInParagraph.Clear();
-                }
-
-                if (descriptionsInParagraph.Count < imagesInPargraph.Count)
-                    DescriptionHandler.HandleDescriptionToImages(descriptionsInParagraph, _splitExample);
 
                 if (AddNewLinesToLists(images, descriptions, imagesInPargraph, descriptionsInParagraph)
                     || paragraphCounter > 1)
                     ClearTempData(ref imageBitmap, ref description, imagesInPargraph,
                                     descriptionsInParagraph, ref paragraphCounter, ref imageFlag);
             }
+        }
+
+        private bool CheckDscriptionsAndImages(List<string> descriptionsInParagraph, 
+            List<Bitmap> imagesInPargraph, ref int paragraphCounter)
+        {
+            descriptionsInParagraph = descriptionsInParagraph.Where(
+                    description => description != null).ToList();
+
+            if (descriptionsInParagraph.Count == 0)
+                return true;
+
+            if (imagesInPargraph.Count == 0)
+            {
+                paragraphCounter = 0;
+                descriptionsInParagraph.Clear();
+                return true;
+            }
+
+            if (descriptionsInParagraph.Count < imagesInPargraph.Count)
+                DescriptionHandler.HandleDescriptionToImages(descriptionsInParagraph, _splitExample);
+
+            return false;
         }
 
         private void ClearTempData(ref Bitmap? imageBitmap, ref string? description,
@@ -160,46 +171,6 @@ namespace docxParserForms.DocxHandler
                 images.Add(tempImages[i]);
             }
             return true;
-        }
-
-        private void SaveToDb(List<string> descriptions, List<Bitmap> images)
-        {
-            var count = descriptions.Count;
-
-            for (int i = 0; i < count; i++)
-            {
-                using (var connection = new SqlConnection(_connectionString))
-                {
-                    using (var command = connection.CreateCommand())
-                    {
-                        command.CommandText =
-                            "INSERT INTO parser_db (description, image) VALUES (@description, @image)";
-
-                        using var memoryStream = new MemoryStream();
-                        {
-                            images[i].Save(memoryStream, ImageFormat.Jpeg);
-                            memoryStream.Position = 0;
-
-                            var sqlImageParam = new SqlParameter(
-                                "@image", System.Data.SqlDbType.VarBinary, (int)memoryStream.Length)
-                            {
-                                Value = memoryStream.ToArray()
-                            };
-
-                            var sqlDescriptionParam = new SqlParameter(
-                                "@description", System.Data.SqlDbType.VarChar, descriptions[i].Length)
-                            {
-                                Value = descriptions[i].ToString()
-                            };
-
-                            command.Parameters.Add(sqlDescriptionParam);
-                            command.Parameters.Add(sqlImageParam);
-                        }
-                        connection.Open();
-                        command.ExecuteNonQuery();
-                    }
-                }
-            }
         }
     }
 }
