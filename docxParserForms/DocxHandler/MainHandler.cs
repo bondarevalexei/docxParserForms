@@ -88,7 +88,6 @@ namespace docxParserForms.DocxHandler
                         run.Descendants<Drawing>().FirstOrDefault();
 
                     if (image != null && image.Inline != null)
-
                     {
                         if (imagesInPargraph.Count > 0 && paragraphCounter > imageFlag)
                         {
