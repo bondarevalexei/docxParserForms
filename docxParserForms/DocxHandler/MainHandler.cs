@@ -29,13 +29,17 @@ namespace docxParserForms.DocxHandler
             List<Model> models = new();
             List<string> imageTypes = new();
 
+            ImageHandler.ExtractImages(filepath, images, imageTypes);
+
             try
             {
                 using (WordprocessingDocument wordDocument =
                     WordprocessingDocument.Open(filepath, false))
                 {
-                    HandleParagraphsInBody(wordDocument, images, descriptions, imageTypes);
+                    HandleParagraphsInBody(wordDocument, descriptions);
                 }
+
+                CheckDescriptions(descriptions, images.Count);
 
                 WriteDataInModelsList(images, descriptions, models, filepath, imageTypes);
 
@@ -48,6 +52,13 @@ namespace docxParserForms.DocxHandler
             }
 
             return models;
+        }
+
+        private void CheckDescriptions(List<string> descriptions, int count)
+        {
+            if(descriptions.Count < count)
+                for (int i = descriptions.Count; i < count; i++)
+                    descriptions.Add("");
         }
 
         private void WriteDataInModelsList(List<Bitmap> images,
@@ -66,42 +77,36 @@ namespace docxParserForms.DocxHandler
                 });
         }
 
-        private void HandleParagraphsInBody(WordprocessingDocument wordDocument,
-            List<Bitmap> images, List<string> descriptions, List<string> imageTypes)
+        private void HandleParagraphsInBody(WordprocessingDocument wordDocument, List<string> descriptions)
         {
             Body body = wordDocument.MainDocumentPart.Document.Body;
 
-            List<Bitmap> imagesInPargraph = new();
             List<string> descriptionsInParagraph = new();
-
-            Bitmap? imageBitmap = null;
             string? description = null;
-            int paragraphCounter = 0, imageFlag = 0;
+            int paragraphCounter = 0;
 
             foreach (Paragraph paragraph in body.Descendants<Paragraph>())
             {
+                bool isDescriptionContains = false;
+                int tempImagesCount = 0;
                 paragraphCounter++;
 
                 foreach (Run run in paragraph.Descendants<Run>())
                 {
-                    Drawing image =
-                        run.Descendants<Drawing>().FirstOrDefault();
-
-                    if (image != null && image.Inline != null)
+                    int imagesCountInRun = run.Descendants<Drawing>().Count();
+                    if (imagesCountInRun > 0)
                     {
-                        if (imagesInPargraph.Count > 0 && paragraphCounter > imageFlag)
+                        if (!isDescriptionContains)
                         {
-                            descriptionsInParagraph.Add("");
-                            AddNewLinesToLists(images, descriptions, imagesInPargraph, 
-                                descriptionsInParagraph);
-                            ClearTempData(ref imageBitmap, ref description, imagesInPargraph,
-                                descriptionsInParagraph, ref paragraphCounter, ref imageFlag);
-                        }
+                            if (tempImagesCount == 0)
+                            {
+                                tempImagesCount = imagesCountInRun;
+                                continue;
+                            }
 
-                        imageBitmap = new Bitmap(ImageHandler.ExtractImage(wordDocument.MainDocumentPart, 
-                            image, imageTypes));
-                        imagesInPargraph.Add(imageBitmap);
-                        imageFlag = paragraphCounter;
+                            while (tempImagesCount-- != 0)
+                                descriptions.Add("");
+                        }
                     }
                     else
                     {
@@ -113,22 +118,21 @@ namespace docxParserForms.DocxHandler
                             continue;
 
                         descriptionsInParagraph.Add(description);
+                        isDescriptionContains = true;
                         break;
                     }
                 }
 
-                if (CheckDscriptionsAndImages(descriptionsInParagraph, imagesInPargraph, ref paragraphCounter))
+                if (CheckDscriptionsAndImages(descriptionsInParagraph, ref paragraphCounter, tempImagesCount))
                     continue;
 
-                if (AddNewLinesToLists(images, descriptions, imagesInPargraph, descriptionsInParagraph)
-                    || paragraphCounter > 1)
-                    ClearTempData(ref imageBitmap, ref description, imagesInPargraph,
-                                    descriptionsInParagraph, ref paragraphCounter, ref imageFlag);
+                if (AddNewLinesToLists(descriptions, descriptionsInParagraph) || paragraphCounter > 1)
+                    ClearTempData(ref description, descriptionsInParagraph, ref paragraphCounter);
             }
         }
 
         private bool CheckDscriptionsAndImages(List<string> descriptionsInParagraph, 
-            List<Bitmap> imagesInPargraph, ref int paragraphCounter)
+            ref int paragraphCounter, int tempImagesCount)
         {
             descriptionsInParagraph = descriptionsInParagraph.Where(
                     description => description != null).ToList();
@@ -136,37 +140,33 @@ namespace docxParserForms.DocxHandler
             if (descriptionsInParagraph.Count == 0)
                 return true;
 
-            if (imagesInPargraph.Count == 0)
+            if (tempImagesCount == 0)
             {
                 paragraphCounter = 0;
                 descriptionsInParagraph.Clear();
                 return true;
             }
 
-            if (descriptionsInParagraph.Count < imagesInPargraph.Count)
+            if (descriptionsInParagraph.Count < tempImagesCount)
                 DescriptionHandler.HandleDescriptionToImages(descriptionsInParagraph, _splitExample);
 
             return false;
         }
 
-        private void ClearTempData(ref Bitmap? imageBitmap, ref string? description,
-            List<Bitmap> imagesInParagraph, List<string> descriptionsInParagraph,
-                ref int paragraphCounter, ref int imageFlag)
+        private void ClearTempData( ref string? description, List<string> descriptionsInParagraph,
+                ref int paragraphCounter)
         {
-            (imageBitmap, description) = (null, null);
-            imagesInParagraph.Clear();
+            description = null;
             descriptionsInParagraph.Clear();
-            (paragraphCounter, imageFlag) = (0, 0);
+            paragraphCounter = 0;
         }
 
-        private bool AddNewLinesToLists(List<Bitmap> images,
-            List<string> descriptions, List<Bitmap> tempImages, List<string> tempDescriptions)
+        private bool AddNewLinesToLists(List<string> descriptions, List<string> tempDescriptions)
         {
-            for (int i = 0; i < descriptions.Count; i++)
-            {
-                descriptions.Add(tempDescriptions[i]);
-                images.Add(tempImages[i]);
-            }
+
+            foreach(var description in tempDescriptions) 
+                descriptions.Add(description);
+            
             return true;
         }
     }

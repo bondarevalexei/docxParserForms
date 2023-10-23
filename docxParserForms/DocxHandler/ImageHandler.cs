@@ -1,24 +1,31 @@
-﻿using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Wordprocessing;
+﻿using SautinSoft.Document;
+using SautinSoft.Document.Drawing;
 
 namespace docxParserForms.DocxHandler
 {
     public static class ImageHandler
     {
-        public static Bitmap ExtractImage(MainDocumentPart wDoc, Drawing image, List<string> imageTypes)
+        public static void ExtractImages(string path, List<Bitmap> result, List<string> imageTypes)
         {
-            var imageFirst = image.Inline.Graphic.GraphicData
-                .Descendants<DocumentFormat.OpenXml.Drawing.Pictures
-                    .Picture>().FirstOrDefault();
+            List<ImageData> imgInventory = new List<ImageData>();
 
-            var blip = imageFirst.BlipFill.Blip.Embed.Value;
+            DocumentCore dc = DocumentCore.Load(path);
+            foreach (Picture picture in dc.GetChildElements(true, ElementType.Picture))
+            {
+                if (imgInventory.Exists(img => img.GetStream().Length == picture.ImageData.GetStream().Length) == false)
+                    imgInventory.Add(picture.ImageData);
+            }
 
-            ImagePart img = (ImagePart)wDoc.Document.MainDocumentPart
-                .GetPartById(blip);
-            imageTypes.Add(img.ContentType);
+            if (imgInventory.Count == 0)
+                return;
 
-            using Image resultImage = Bitmap.FromStream(img.GetStream());
-            return new Bitmap(resultImage);
+            foreach (ImageData img in imgInventory)
+            {
+                using Image tempImage = Bitmap.FromStream(img.GetStream());
+                imageTypes.Add(img.Format.ToString());
+
+                result.Add(new Bitmap(tempImage));
+            }
         }
     }
 }
