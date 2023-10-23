@@ -18,8 +18,6 @@ namespace docxParserForms.DocxHandler
 
             if (imgInventory.Count == 0)
             {
-                imgInventory.Clear();
-                GC.Collect();
                 return;
             }
 
@@ -32,7 +30,6 @@ namespace docxParserForms.DocxHandler
             }
 
             imgInventory.Clear();
-            GC.Collect();
         }
     }
 }

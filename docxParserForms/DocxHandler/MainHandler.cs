@@ -42,8 +42,6 @@ namespace docxParserForms.DocxHandler
 
                 CheckDescriptions(descriptions, images.Count);
                 WriteDataInModelsList(images, descriptions, models, filepath, imageTypes);
-
-                GC.Collect();
                 //DbHandler.SaveToDb(descriptions, images, _connectionString);
                 MessageBox.Show($"Файл {filepath} успешно обработан. Добавлено {descriptions.Count} элемента(ов).");
             }
