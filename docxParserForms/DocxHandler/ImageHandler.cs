@@ -10,16 +10,12 @@ namespace docxParserForms.DocxHandler
             List<ImageData> imgInventory = new List<ImageData>();
 
             DocumentCore dc = DocumentCore.Load(path);
-            foreach (Picture picture in dc.GetChildElements(true, ElementType.Picture))
-            {
-                if (imgInventory.Exists(img => img.GetStream().Length == picture.ImageData.GetStream().Length) == false)
-                    imgInventory.Add(picture.ImageData);
-            }
-
+            imgInventory.AddRange(from Picture picture in dc.GetChildElements(true, ElementType.Picture)
+                                  where imgInventory.Exists(img => img.GetStream().Length == picture.ImageData.GetStream().Length) == false
+                                  select picture.ImageData);
+            
             if (imgInventory.Count == 0)
-            {
                 return;
-            }
 
             foreach (ImageData img in imgInventory)
             {
