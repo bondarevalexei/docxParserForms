@@ -11,7 +11,6 @@
   <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" Version="2.20.0" />
     <PackageReference Include="EntityFramework" Version="6.4.4" />
-    <PackageReference Include="GroupDocs.Parser" Version="23.5.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="sautinsoft.document" Version="2023.9.10" />
   </ItemGroup>

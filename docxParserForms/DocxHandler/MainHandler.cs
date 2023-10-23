@@ -1,4 +1,5 @@
-﻿using DocumentFormat.OpenXml.Packaging;
+﻿using DocumentFormat.OpenXml.Drawing.Diagrams;
+using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Newtonsoft.Json.Linq;
 using Paragraph = DocumentFormat.OpenXml.Wordprocessing.Paragraph;
@@ -36,7 +37,7 @@ namespace docxParserForms.DocxHandler
                 using (WordprocessingDocument wordDocument =
                     WordprocessingDocument.Open(filepath, false))
                 {
-                    HandleParagraphsInBody(wordDocument, descriptions);
+                    HandleParagraphsInBody(wordDocument, descriptions, images.Count);
                 }
 
                 CheckDescriptions(descriptions, images.Count);
@@ -59,6 +60,11 @@ namespace docxParserForms.DocxHandler
             if(descriptions.Count < count)
                 for (int i = descriptions.Count; i < count; i++)
                     descriptions.Add("");
+            else if(descriptions.Count > count)
+            {
+                for (int i = 0; i < count - descriptions.Count; i++)
+                    descriptions.RemoveAt(-1);
+            }
         }
 
         private void WriteDataInModelsList(List<Bitmap> images,
@@ -77,7 +83,7 @@ namespace docxParserForms.DocxHandler
                 });
         }
 
-        private void HandleParagraphsInBody(WordprocessingDocument wordDocument, List<string> descriptions)
+        private void HandleParagraphsInBody(WordprocessingDocument wordDocument, List<string> descriptions, int imagesCount)
         {
             Body body = wordDocument.MainDocumentPart.Document.Body;
 
@@ -93,6 +99,9 @@ namespace docxParserForms.DocxHandler
 
                 foreach (Run run in paragraph.Descendants<Run>())
                 {
+                    if (descriptions.Count >= imagesCount)
+                        return;
+
                     int imagesCountInRun = run.Descendants<Drawing>().Count();
                     if (imagesCountInRun > 0)
                     {
@@ -104,8 +113,19 @@ namespace docxParserForms.DocxHandler
                                 continue;
                             }
 
-                            while (tempImagesCount-- != 0)
+                            while (tempImagesCount != 0)
+                            {
                                 descriptions.Add("");
+                                tempImagesCount--;
+                            }
+                            
+                            ClearTempData(ref description, descriptionsInParagraph, ref paragraphCounter);
+                            continue;
+                        }
+                        else
+                        {
+                            if (Checker(descriptionsInParagraph, ref paragraphCounter, tempImagesCount, ref description, descriptions))
+                                continue;
                         }
                     }
                     else
@@ -114,21 +134,31 @@ namespace docxParserForms.DocxHandler
                         if (description == null
                             || description?.Trim().Length == 0
                             || descriptionsInParagraph.Count != 0
-                            && String.Compare(description, descriptionsInParagraph[^1]) == 0)
+                            && String.CompareOrdinal(description, descriptionsInParagraph[^1]) == 0)
                             continue;
 
                         descriptionsInParagraph.Add(description);
+                        if (descriptionsInParagraph.Count == tempImagesCount)
+                            break;
                         isDescriptionContains = true;
                         break;
                     }
                 }
 
-                if (CheckDscriptionsAndImages(descriptionsInParagraph, ref paragraphCounter, tempImagesCount))
+                if (Checker(descriptionsInParagraph, ref paragraphCounter, tempImagesCount, ref description, descriptions))
                     continue;
-
-                if (AddNewLinesToLists(descriptions, descriptionsInParagraph) || paragraphCounter > 1)
-                    ClearTempData(ref description, descriptionsInParagraph, ref paragraphCounter);
             }
+        }
+
+        private bool Checker(List<string> descriptionsInParagraph,
+            ref int paragraphCounter, int tempImagesCount, ref string? description, List<string> descriptions)
+        {
+            if (CheckDscriptionsAndImages(descriptionsInParagraph, ref paragraphCounter, tempImagesCount))
+                return true;
+
+            if (AddNewLinesToLists(descriptions, descriptionsInParagraph) || paragraphCounter > 1)
+                ClearTempData(ref description, descriptionsInParagraph, ref paragraphCounter);
+            return false;
         }
 
         private bool CheckDscriptionsAndImages(List<string> descriptionsInParagraph, 
