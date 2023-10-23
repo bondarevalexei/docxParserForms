@@ -17,7 +17,11 @@ namespace docxParserForms.DocxHandler
             }
 
             if (imgInventory.Count == 0)
+            {
+                imgInventory.Clear();
+                GC.Collect();
                 return;
+            }
 
             foreach (ImageData img in imgInventory)
             {
@@ -26,6 +30,9 @@ namespace docxParserForms.DocxHandler
 
                 result.Add(new Bitmap(tempImage));
             }
+
+            imgInventory.Clear();
+            GC.Collect();
         }
     }
 }

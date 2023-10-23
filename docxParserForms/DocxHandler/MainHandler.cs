@@ -41,9 +41,9 @@ namespace docxParserForms.DocxHandler
                 }
 
                 CheckDescriptions(descriptions, images.Count);
-
                 WriteDataInModelsList(images, descriptions, models, filepath, imageTypes);
 
+                GC.Collect();
                 //DbHandler.SaveToDb(descriptions, images, _connectionString);
                 MessageBox.Show($"Файл {filepath} успешно обработан. Добавлено {descriptions.Count} элемента(ов).");
             }
@@ -100,7 +100,10 @@ namespace docxParserForms.DocxHandler
                 foreach (Run run in paragraph.Descendants<Run>())
                 {
                     if (descriptions.Count >= imagesCount)
+                    {
+                        ClearTempData(ref description, descriptionsInParagraph, ref paragraphCounter);
                         return;
+                    }
 
                     int imagesCountInRun = run.Descendants<Drawing>().Count();
                     if (imagesCountInRun > 0)
