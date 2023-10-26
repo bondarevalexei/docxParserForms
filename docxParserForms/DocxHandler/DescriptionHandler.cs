@@ -5,7 +5,7 @@ namespace docxParserForms.DocxHandler
 {
     public static class DescriptionHandler
     {
-        private const string _keyWords = "Картинка Рисунок Рис. Фигура Фиг. Изображение Image Figure Fig. Picture Pic.";
+        private const string KeyWords = "Картинка Рисунок Рис. Фигура Фиг. Изображение Image Figure Fig. Picture Pic.";
 
         public static string? GetDescription(Paragraph paragraph)
         {
@@ -17,7 +17,7 @@ namespace docxParserForms.DocxHandler
             foreach (var line in splittedText)
             {
                 var splittedLine = line.Split(' ');
-                if (splittedLine[0].Trim().Length > 3 && _keyWords.Contains(splittedLine[0]))
+                if (splittedLine[0].Trim().Length > 3 && KeyWords.Contains(splittedLine[0]))
                     return TakeDataFromString(splittedLine, splittedLine[0]);
             }
 
@@ -27,18 +27,18 @@ namespace docxParserForms.DocxHandler
         public static string TakeDataFromString(string[] splittedLine, string keyWord)
         {
             var sb = new StringBuilder();
-            var separators = ".,;:-+*/\\–";
+            const string separators = ".,;:-+*/\\–";
 
-            for (var i = 0; i < splittedLine.Length; i++)
+            foreach (var line in splittedLine)
             {
-                if (splittedLine[i].StartsWith(keyWord, StringComparison.OrdinalIgnoreCase)
-                    || splittedLine[i].Length == 0
-                    || double.TryParse(splittedLine[i], out _)
-                    || separators.Contains(splittedLine[i].ToCharArray()[0].ToString()))
+                if (line.StartsWith(keyWord, StringComparison.OrdinalIgnoreCase)
+                    || line.Length == 0
+                    || double.TryParse(line, out _)
+                    || separators.Contains(line.ToCharArray()[0].ToString()))
                     continue;
                 else
                 {
-                    sb.Append(splittedLine[i]);
+                    sb.Append(line);
                     sb.Append(' ');
                 }
             }
@@ -57,17 +57,17 @@ namespace docxParserForms.DocxHandler
 
             int sepIndex = 0, curIndex = 0;
 
-            for (int i = 0; i < temp.Count; i++)
+            foreach (var t in temp)
             {
-                if (temp[i].Contains(separators[sepIndex]))
+                if (t.Contains(separators[sepIndex]))
                 {
-                    curIndex = temp[i].IndexOf(separators[sepIndex]);
+                    curIndex = t.IndexOf(separators[sepIndex], StringComparison.Ordinal);
                     while (true)
                     {
                         sepIndex++;
 
                         StringBuilder tempString = new();
-                        var splittedDescr = temp[i].Split(' ');
+                        var splittedDescr = t.Split(' ');
 
                         while (curIndex < splittedDescr.Length && splittedDescr[curIndex] != separators[sepIndex])
                         {
@@ -84,7 +84,7 @@ namespace docxParserForms.DocxHandler
                 else
                 {
                     sepIndex = 0;
-                    descriptions.Add(temp[i]);
+                    descriptions.Add(t);
                 }
             }
         }

@@ -1,7 +1,7 @@
 ﻿using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Newtonsoft.Json.Linq;
-using System.Collections.Generic;
+using static System.String;
 using Paragraph = DocumentFormat.OpenXml.Wordprocessing.Paragraph;
 using Run = DocumentFormat.OpenXml.Wordprocessing.Run;
 
@@ -16,7 +16,7 @@ namespace docxParserForms.DocxHandler
         {
             using (StreamReader sr = new("./../../../appsettings.json"))
             {
-                string json = sr.ReadToEnd();
+                var json = sr.ReadToEnd();
                 dynamic data = JObject.Parse(json);
                 _connectionString = data.connectionString;
                 _splitExample = data.splitExample;
@@ -25,15 +25,14 @@ namespace docxParserForms.DocxHandler
 
         public List<Model> HandleFile(string filepath)
         {
-            (List<Bitmap> images, List<string> descriptions, List<Model> models, 
-                List<string> imageTypes) = (new(), new(), new(), new());
+            var (images, descriptions, models, imageTypes) 
+                = (new List<Bitmap>(), new List<string>(), new List<Model>(), new List<string>());
 
             ImageHandler.ExtractImages(filepath, images, imageTypes);
 
             try
             {
-                using (WordprocessingDocument wordDocument =
-                    WordprocessingDocument.Open(filepath, false))
+                using (var wordDocument = WordprocessingDocument.Open(filepath, false))
                 {
                     HandleParagraphsInBody(wordDocument, descriptions, images.Count);
                 }
@@ -51,33 +50,33 @@ namespace docxParserForms.DocxHandler
             return models;
         }
 
-        private void CheckDescriptions(List<string> descriptions, int count)
+        private void CheckDescriptions(IList<string> descriptions, int count)
         {
             if (descriptions.Count < count)
-                for (int i = descriptions.Count; i < count; i++)
+                for (var i = descriptions.Count; i < count; i++)
                     descriptions.Add("");
             else if (descriptions.Count > count)
             {
-                for (int i = 0; i < count - descriptions.Count; i++)
+                for (var i = 0; i < count - descriptions.Count; i++)
                     descriptions.RemoveAt(-1);
             }
         }
 
         private void HandleParagraphsInBody(WordprocessingDocument wordDocument, List<string> descriptions, int imagesCount)
         {
-            Body body = wordDocument.MainDocumentPart.Document.Body;
+            var body = wordDocument.MainDocumentPart.Document.Body;
 
             List<string> descriptionsInParagraph = new();
             string? description = null;
-            (int paragraphCounter, int tempImagesCount) = (0, 0);
+            var (paragraphCounter, tempImagesCount) = (0, 0);
 
-            foreach (Paragraph paragraph in body.Descendants<Paragraph>())
+            var isDescriptionContains = false;
+            foreach (var paragraph in body.Descendants<Paragraph>())
             {
-                bool isDescriptionContains = false;
                 paragraphCounter++;
 
                 // переписать
-                foreach (Run run in paragraph.Descendants<Run>())
+                foreach (var run in paragraph.Descendants<Run>())
                 {
                     if (descriptions.Count >= imagesCount)
                     {
@@ -85,7 +84,7 @@ namespace docxParserForms.DocxHandler
                         return;
                     }
 
-                    int imagesCountInRun = run.Descendants<Drawing>().Count();
+                    var imagesCountInRun = run.Descendants<Drawing>().Count();
                     if (imagesCountInRun > 0)
                     {
                         if (!isDescriptionContains)
@@ -118,7 +117,7 @@ namespace docxParserForms.DocxHandler
                         if (description == null
                             || description?.Trim().Length == 0
                             || descriptionsInParagraph.Count != 0
-                            && String.CompareOrdinal(description, descriptionsInParagraph[^1]) == 0)
+                            && CompareOrdinal(description, descriptionsInParagraph[^1]) == 0)
                             continue;
 
                         descriptionsInParagraph.Add(description);

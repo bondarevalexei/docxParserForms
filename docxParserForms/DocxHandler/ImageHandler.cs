@@ -7,9 +7,9 @@ namespace docxParserForms.DocxHandler
     {
         public static void ExtractImages(string path, List<Bitmap> result, List<string> imageTypes)
         {
-            List<ImageData> imgInventory = new List<ImageData>();
+            var imgInventory = new List<ImageData>();
 
-            DocumentCore dc = DocumentCore.Load(path);
+            var dc = DocumentCore.Load(path);
             imgInventory.AddRange(from Picture picture in dc.GetChildElements(true, ElementType.Picture)
                                   where imgInventory.Exists(img => img.GetStream().Length == picture.ImageData.GetStream().Length) == false
                                   select picture.ImageData);
@@ -17,9 +17,9 @@ namespace docxParserForms.DocxHandler
             if (imgInventory.Count == 0)
                 return;
 
-            foreach (ImageData img in imgInventory)
+            foreach (var img in imgInventory)
             {
-                using Image tempImage = Bitmap.FromStream(img.GetStream());
+                using var tempImage = Image.FromStream(img.GetStream());
                 imageTypes.Add(img.Format.ToString());
 
                 result.Add(new Bitmap(tempImage));
