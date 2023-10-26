@@ -38,6 +38,7 @@ namespace docxParserForms
                 _count = _modelList.Count;
                 if (_count > 0)
                 {
+                    label1.Text = (_index + 1).ToString() + " / " + _count.ToString();
                     ShowModel(_modelList[0]);
                 }
 
@@ -76,6 +77,7 @@ namespace docxParserForms
         {
             if (prevButton.Enabled)
                 _index--;
+            label1.Text = (_index + 1).ToString() + " / " + _modelList.Count.ToString();
             CheckButtons();
 
             if (_count > 0) ShowModel(_modelList[_index]);
@@ -85,6 +87,7 @@ namespace docxParserForms
         {
             if (nextButton.Enabled)
                 _index++;
+            label1.Text = (_index + 1).ToString() + " / " + _modelList.Count.ToString();
             CheckButtons();
 
             if (_count > 0) ShowModel(_modelList[_index]);

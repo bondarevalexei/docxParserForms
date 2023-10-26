@@ -5,7 +5,7 @@ namespace docxParserForms.DocxHandler
 {
     public static class DescriptionHandler
     {
-        private const string _keyWords = "Картинка Рисунок Рис. Фигура Фиг. Изображение Image Figure";
+        private const string _keyWords = "Картинка Рисунок Рис. Фигура Фиг. Изображение Image Figure Fig. Picture Pic.";
 
         public static string? GetDescription(Paragraph paragraph)
         {
@@ -33,7 +33,7 @@ namespace docxParserForms.DocxHandler
             {
                 if (splittedLine[i].StartsWith(keyWord, StringComparison.OrdinalIgnoreCase)
                     || splittedLine[i].Length == 0
-                    || int.TryParse(splittedLine[i], out _)
+                    || double.TryParse(splittedLine[i], out _)
                     || separators.Contains(splittedLine[i].ToCharArray()[0].ToString()))
                     continue;
                 else
@@ -43,10 +43,7 @@ namespace docxParserForms.DocxHandler
                 }
             }
 
-            if (sb.ToString().StartsWith("SEQ ARABIC"))
-                sb.Remove(0, 10);
-
-            return sb.ToString().Trim();
+            return sb.ToString().Replace("SEQ ARABIC", "").Trim();
         }
 
         public static void HandleDescriptionToImages(List<string> descriptions, string _splitExample)

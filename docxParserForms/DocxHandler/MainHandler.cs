@@ -1,6 +1,7 @@
 ﻿using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Newtonsoft.Json.Linq;
+using System.Collections.Generic;
 using Paragraph = DocumentFormat.OpenXml.Wordprocessing.Paragraph;
 using Run = DocumentFormat.OpenXml.Wordprocessing.Run;
 
@@ -24,10 +25,8 @@ namespace docxParserForms.DocxHandler
 
         public List<Model> HandleFile(string filepath)
         {
-            List<Bitmap> images = new();
-            List<string> descriptions = new();
-            List<Model> models = new();
-            List<string> imageTypes = new();
+            (List<Bitmap> images, List<string> descriptions, List<Model> models, 
+                List<string> imageTypes) = (new(), new(), new(), new());
 
             ImageHandler.ExtractImages(filepath, images, imageTypes);
 
@@ -54,30 +53,14 @@ namespace docxParserForms.DocxHandler
 
         private void CheckDescriptions(List<string> descriptions, int count)
         {
-            if(descriptions.Count < count)
+            if (descriptions.Count < count)
                 for (int i = descriptions.Count; i < count; i++)
                     descriptions.Add("");
-            else if(descriptions.Count > count)
+            else if (descriptions.Count > count)
             {
                 for (int i = 0; i < count - descriptions.Count; i++)
                     descriptions.RemoveAt(-1);
             }
-        }
-
-        private void WriteDataInModelsList(List<Bitmap> images,
-            List<string> descriptions, List<Model> models, string path,
-                List<string> imageTypes)
-        {
-            for (int i = 0; i < descriptions.Count; i++)
-                models.Add(new Model
-                {
-                    Description = descriptions[i],
-                    Image = images[i],
-                    Filename = path.Split('\\')[^1],
-                    ImageFormat = imageTypes[i],
-                    Width = images[i].Width,
-                    Height = images[i].Height,
-                });
         }
 
         private void HandleParagraphsInBody(WordprocessingDocument wordDocument, List<string> descriptions, int imagesCount)
@@ -86,14 +69,14 @@ namespace docxParserForms.DocxHandler
 
             List<string> descriptionsInParagraph = new();
             string? description = null;
-            int paragraphCounter = 0;
+            (int paragraphCounter, int tempImagesCount) = (0, 0);
 
             foreach (Paragraph paragraph in body.Descendants<Paragraph>())
             {
                 bool isDescriptionContains = false;
-                int tempImagesCount = 0;
                 paragraphCounter++;
 
+                // переписать
                 foreach (Run run in paragraph.Descendants<Run>())
                 {
                     if (descriptions.Count >= imagesCount)
@@ -118,7 +101,8 @@ namespace docxParserForms.DocxHandler
                                 descriptions.Add("");
                                 tempImagesCount--;
                             }
-                            
+
+                            tempImagesCount = imagesCountInRun;
                             ClearTempData(ref description, descriptionsInParagraph, ref paragraphCounter);
                             continue;
                         }
@@ -161,7 +145,7 @@ namespace docxParserForms.DocxHandler
             return false;
         }
 
-        private bool CheckDscriptionsAndImages(List<string> descriptionsInParagraph, 
+        private bool CheckDscriptionsAndImages(List<string> descriptionsInParagraph,
             ref int paragraphCounter, int tempImagesCount)
         {
             descriptionsInParagraph = descriptionsInParagraph.Where(
@@ -183,7 +167,22 @@ namespace docxParserForms.DocxHandler
             return false;
         }
 
-        private void ClearTempData( ref string? description, List<string> descriptionsInParagraph,
+        private void WriteDataInModelsList(List<Bitmap> images, List<string> descriptions,
+            List<Model> models, string path, List<string> imageTypes)
+        {
+            for (int i = 0; i < descriptions.Count; i++)
+                models.Add(new Model
+                {
+                    Description = descriptions[i],
+                    Image = images[i],
+                    Filename = path.Split('\\')[^1],
+                    ImageFormat = imageTypes[i],
+                    Width = images[i].Width,
+                    Height = images[i].Height,
+                });
+        }
+
+        private void ClearTempData(ref string? description, List<string> descriptionsInParagraph,
                 ref int paragraphCounter)
         {
             description = null;
@@ -193,10 +192,9 @@ namespace docxParserForms.DocxHandler
 
         private bool AddNewLinesToLists(List<string> descriptions, List<string> tempDescriptions)
         {
-
-            foreach(var description in tempDescriptions) 
+            foreach (var description in tempDescriptions)
                 descriptions.Add(description);
-            
+
             return true;
         }
     }

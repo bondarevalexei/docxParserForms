@@ -35,6 +35,7 @@
             descriptionBox = new TextBox();
             prevButton = new Button();
             nextButton = new Button();
+            label1 = new Label();
             ((System.ComponentModel.ISupportInitialize)pictureBox).BeginInit();
             SuspendLayout();
             // 
@@ -101,11 +102,21 @@
             nextButton.UseVisualStyleBackColor = true;
             nextButton.Click += nextButton_Click;
             // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new Point(485, 370);
+            label1.Name = "label1";
+            label1.Size = new Size(30, 15);
+            label1.TabIndex = 6;
+            label1.Text = "0 / 0";
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(684, 411);
+            Controls.Add(label1);
             Controls.Add(nextButton);
             Controls.Add(prevButton);
             Controls.Add(descriptionBox);
@@ -128,5 +139,6 @@
         private TextBox descriptionBox;
         private Button prevButton;
         private Button nextButton;
+        private Label label1;
     }
 }
