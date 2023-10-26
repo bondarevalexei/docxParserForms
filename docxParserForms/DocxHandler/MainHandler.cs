@@ -26,7 +26,7 @@ namespace docxParserForms.DocxHandler
 
         public List<Model> HandleFile(string filepath)
         {
-            var (images, descriptions, models, imageTypes) 
+            var (images, descriptions, models, imageTypes)
                 = (new List<Bitmap>(), new List<string>(), new List<Model>(), new List<string>());
 
             ImageHandler.ExtractImages(filepath, images, imageTypes);
@@ -63,22 +63,23 @@ namespace docxParserForms.DocxHandler
             }
         }
 
-        private void HandleParagraphsInBody(WordprocessingDocument wordDocument, List<string> descriptions, int imagesCount)
+        private void HandleParagraphsInBody(WordprocessingDocument wordDocument, ICollection<string> descriptions, int imagesCount)
         {
             var body = wordDocument.MainDocumentPart.Document.Body;
 
             List<string> descriptionsInParagraph = new();
             string? description = null;
-            var (paragraphCounter, tempImagesCount) = (0, 0);
+            var (paragraphCounter, tempImagesCount, handledImagesCount) = (0, 0, 0);
 
             var isDescriptionContains = false;
             foreach (var paragraph in body.Descendants<Paragraph>())
             {
                 paragraphCounter++;
 
-                // переписать
                 foreach (var run in paragraph.Descendants<Run>())
                 {
+                    handledImagesCount = descriptions.Count;
+
                     if (descriptions.Count >= imagesCount)
                     {
                         ClearTempData(ref description, descriptionsInParagraph, ref paragraphCounter);
@@ -96,10 +97,9 @@ namespace docxParserForms.DocxHandler
                                 continue;
                             }
 
-                            while (tempImagesCount != 0)
+                            while (descriptions.Count != handledImagesCount + tempImagesCount)
                             {
                                 descriptions.Add("");
-                                tempImagesCount--;
                             }
 
                             tempImagesCount = imagesCountInRun;
@@ -161,7 +161,7 @@ namespace docxParserForms.DocxHandler
             return false;
         }
 
-        private void WriteDataInModelsList(IReadOnlyList<Bitmap> images, IReadOnlyList<string> descriptions, 
+        private void WriteDataInModelsList(IReadOnlyList<Bitmap> images, IReadOnlyList<string> descriptions,
             ICollection<Model> models, string path, IReadOnlyList<string> imageTypes)
         {
             for (var i = 0; i < descriptions.Count; i++)
