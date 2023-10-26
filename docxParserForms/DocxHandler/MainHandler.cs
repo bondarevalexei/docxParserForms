@@ -1,4 +1,5 @@
-﻿using DocumentFormat.OpenXml.Packaging;
+﻿using System.Collections;
+using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using Newtonsoft.Json.Linq;
 using static System.String;
@@ -103,12 +104,11 @@ namespace docxParserForms.DocxHandler
 
                             tempImagesCount = imagesCountInRun;
                             ClearTempData(ref description, descriptionsInParagraph, ref paragraphCounter);
-                            continue;
                         }
                         else
                         {
-                            if (Checker(descriptionsInParagraph, ref paragraphCounter, tempImagesCount, ref description, descriptions))
-                                continue;
+                            Checker(descriptionsInParagraph, ref paragraphCounter, tempImagesCount, ref description,
+                                descriptions);
                         }
                     }
                     else
@@ -128,30 +128,25 @@ namespace docxParserForms.DocxHandler
                     }
                 }
 
-                if (Checker(descriptionsInParagraph, ref paragraphCounter, tempImagesCount, ref description, descriptions))
-                    continue;
+                Checker(descriptionsInParagraph, ref paragraphCounter, tempImagesCount, ref description, descriptions);
             }
         }
 
-        private bool Checker(List<string> descriptionsInParagraph,
-            ref int paragraphCounter, int tempImagesCount, ref string? description, List<string> descriptions)
+        private void Checker(List<string> descriptionsInParagraph,
+            ref int paragraphCounter, int tempImagesCount, ref string? description, ICollection<string> descriptions)
         {
-            if (CheckDscriptionsAndImages(descriptionsInParagraph, ref paragraphCounter, tempImagesCount))
-                return true;
+            if (CheckDescriptionsAndImages(descriptionsInParagraph, ref paragraphCounter, tempImagesCount)) return;
 
             if (AddNewLinesToLists(descriptions, descriptionsInParagraph) || paragraphCounter > 1)
                 ClearTempData(ref description, descriptionsInParagraph, ref paragraphCounter);
-            return false;
         }
 
-        private bool CheckDscriptionsAndImages(List<string> descriptionsInParagraph,
+        private bool CheckDescriptionsAndImages(List<string> descriptionsInParagraph,
             ref int paragraphCounter, int tempImagesCount)
         {
-            descriptionsInParagraph = descriptionsInParagraph.Where(
-                    description => description != null).ToList();
+            descriptionsInParagraph = descriptionsInParagraph.Where(_ => true).ToList();
 
-            if (descriptionsInParagraph.Count == 0)
-                return true;
+            if (descriptionsInParagraph.Count == 0) return true;
 
             if (tempImagesCount == 0)
             {
@@ -166,10 +161,10 @@ namespace docxParserForms.DocxHandler
             return false;
         }
 
-        private void WriteDataInModelsList(List<Bitmap> images, List<string> descriptions,
-            List<Model> models, string path, List<string> imageTypes)
+        private void WriteDataInModelsList(IReadOnlyList<Bitmap> images, IReadOnlyList<string> descriptions, 
+            ICollection<Model> models, string path, IReadOnlyList<string> imageTypes)
         {
-            for (int i = 0; i < descriptions.Count; i++)
+            for (var i = 0; i < descriptions.Count; i++)
                 models.Add(new Model
                 {
                     Description = descriptions[i],
@@ -181,7 +176,7 @@ namespace docxParserForms.DocxHandler
                 });
         }
 
-        private void ClearTempData(ref string? description, List<string> descriptionsInParagraph,
+        private void ClearTempData(ref string? description, IList descriptionsInParagraph,
                 ref int paragraphCounter)
         {
             description = null;
@@ -189,7 +184,7 @@ namespace docxParserForms.DocxHandler
             paragraphCounter = 0;
         }
 
-        private bool AddNewLinesToLists(List<string> descriptions, List<string> tempDescriptions)
+        private bool AddNewLinesToLists(ICollection<string> descriptions, List<string> tempDescriptions)
         {
             foreach (var description in tempDescriptions)
                 descriptions.Add(description);
