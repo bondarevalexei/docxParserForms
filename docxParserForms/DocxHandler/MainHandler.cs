@@ -12,6 +12,7 @@ namespace docxParserForms.DocxHandler
     {
         private readonly string _connectionString;
         private readonly string _splitExample;
+        private readonly int _descriptionsIndexForHash;
 
         public MainHandler()
         {
@@ -21,6 +22,7 @@ namespace docxParserForms.DocxHandler
                 dynamic data = JObject.Parse(json);
                 _connectionString = data.connectionString;
                 _splitExample = data.splitExample;
+                _descriptionsIndexForHash = data.descriptionsIndexForHash;
             }
         }
 
@@ -29,16 +31,17 @@ namespace docxParserForms.DocxHandler
             var (images, descriptions, models, imageTypes)
                 = (new List<Bitmap>(), new List<string>(), new List<Model>(), new List<string>());
 
-            ImageHandler.ExtractImages(filepath, images, imageTypes);
-
             try
             {
+                ImageHandler.ExtractImages(filepath, images, imageTypes);
+                var descriptionsHash = TextHandler.CollectDescriptionsFromText(filepath);
+
                 using (var wordDocument = WordprocessingDocument.Open(filepath, false))
                 {
-                    HandleParagraphsInBody(wordDocument, descriptions, images.Count);
+                    HandleParagraphsInBody(wordDocument, descriptions, images.Count, descriptionsHash);
                 }
 
-                CheckDescriptions(descriptions, images.Count);
+                CheckDescriptions(descriptions, images.Count, descriptionsHash);
                 WriteDataInModelsList(images, descriptions, models, filepath, imageTypes);
                 //DbHandler.SaveToDb(descriptions, images, _connectionString);
                 MessageBox.Show($"Файл {filepath} успешно обработан. Добавлено {descriptions.Count} элемента(ов).");
@@ -51,25 +54,62 @@ namespace docxParserForms.DocxHandler
             return models;
         }
 
-        private void CheckDescriptions(IList<string> descriptions, int count)
+        private void CheckDescriptions(IList<string> descriptions, int imageCount, Hashtable descriptionsHash)
         {
-            if (descriptions.Count < count)
-                for (var i = descriptions.Count; i < count; i++)
-                    descriptions.Add("");
-            else if (descriptions.Count > count)
+
+            if (descriptions.Count < imageCount || descriptions.Count == imageCount)
             {
-                for (var i = 0; i < count - descriptions.Count; i++)
+                if (descriptionsHash != null)
+                {
+                    CompareHashAndDescriptions(descriptions, descriptionsHash, imageCount);
+                }
+                for (var i = descriptions.Count; i < imageCount; i++)
+                    descriptions.Add("");
+            }
+            else if (descriptions.Count > imageCount)
+                for (var i = 0; i < imageCount - descriptions.Count; i++)
                     descriptions.RemoveAt(-1);
+        }
+
+        private void CompareHashAndDescriptions(IList<string> descriptions, IDictionary descriptionsHash, int imageCount)
+        {
+            if (descriptions.Count == 0)
+            {
+                for (var i = 0; i < _descriptionsIndexForHash; i++)
+                    descriptions.Add("");
+
+                foreach (string key in descriptionsHash.Keys)
+                    descriptions.Add(descriptionsHash[key].ToString());
+
+                while (descriptions.Count != imageCount)
+                    descriptions.Add("");
+            }
+            else
+            {
+                while (descriptions.Count < _descriptionsIndexForHash)
+                    descriptions.Add("");
+
+                var temp = _descriptionsIndexForHash;
+
+                foreach (string key in descriptionsHash.Keys)
+                {
+                    if (descriptions.Count > temp)
+                        descriptions[temp++] = descriptionsHash[key].ToString();
+                    else descriptions.Add(descriptionsHash[key].ToString());
+                }
+
+                while (descriptions.Count != imageCount)
+                    descriptions.Add("");
             }
         }
 
-        private void HandleParagraphsInBody(WordprocessingDocument wordDocument, ICollection<string> descriptions, int imagesCount)
+        private void HandleParagraphsInBody(WordprocessingDocument wordDocument, ICollection<string> descriptions, int imagesCount, Hashtable descriptionsHash)
         {
             var body = wordDocument.MainDocumentPart.Document.Body;
 
             List<string> descriptionsInParagraph = new();
             string? description = null;
-            var (paragraphCounter, tempImagesCount, handledImagesCount) = (0, 0, 0);
+            var (paragraphCounter, tempImagesCount) = (0, 0);
 
             var isDescriptionContains = false;
             foreach (var paragraph in body.Descendants<Paragraph>())
@@ -78,7 +118,7 @@ namespace docxParserForms.DocxHandler
 
                 foreach (var run in paragraph.Descendants<Run>())
                 {
-                    handledImagesCount = descriptions.Count;
+                    var handledImagesCount = descriptions.Count;
 
                     if (descriptions.Count >= imagesCount)
                     {
@@ -113,7 +153,7 @@ namespace docxParserForms.DocxHandler
                     }
                     else
                     {
-                        description = DescriptionHandler.GetDescription(paragraph);
+                        description = DescriptionHandler.GetDescription(paragraph, descriptionsHash);
                         if (description == null
                             || description?.Trim().Length == 0
                             || descriptionsInParagraph.Count != 0

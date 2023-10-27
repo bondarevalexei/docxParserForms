@@ -1,13 +1,14 @@
-﻿using DocumentFormat.OpenXml.Wordprocessing;
+﻿using System.Collections;
+using DocumentFormat.OpenXml.Wordprocessing;
 using System.Text;
 
 namespace docxParserForms.DocxHandler
 {
     public static class DescriptionHandler
     {
-        private const string KeyWords = "Картинка Рисунок Рис. Фигура Фиг. Изображение Image Figure Fig. Picture Pic.";
+        private const string KeyWords = "картинка рисунок рис. фигура фиг. изображение image figure fig. picture pic.";
 
-        public static string? GetDescription(Paragraph paragraph)
+        public static string? GetDescription(Paragraph paragraph, Hashtable descriptionsHash)
         {
             var stringBuilder = new StringBuilder();
             foreach (var run in paragraph.Elements<Run>())
@@ -17,8 +18,12 @@ namespace docxParserForms.DocxHandler
             foreach (var line in splittedText)
             {
                 var splittedLine = line.Split(' ');
-                if (splittedLine[0].Trim().Length > 3 && KeyWords.Contains(splittedLine[0]))
-                    return TakeDataFromString(splittedLine, splittedLine[0]);
+                if (splittedLine[0].Trim().Length <= 3 || !KeyWords.Contains(splittedLine[0].ToLower())) continue;
+
+                var keyWord = splittedLine[0] + " " + splittedLine[1];
+                return descriptionsHash.Contains(keyWord) 
+                    ? descriptionsHash[keyWord]?.ToString() 
+                    : TakeDataFromString(splittedLine, splittedLine[0]);
             }
 
             return null;
