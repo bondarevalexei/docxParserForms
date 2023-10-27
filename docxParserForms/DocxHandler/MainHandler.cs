@@ -13,6 +13,7 @@ namespace docxParserForms.DocxHandler
         private readonly string _connectionString;
         private readonly string _splitExample;
         private readonly int _descriptionsIndexForHash;
+        private readonly bool _isHashDescNeed;
 
         public MainHandler()
         {
@@ -23,6 +24,7 @@ namespace docxParserForms.DocxHandler
                 _connectionString = data.connectionString;
                 _splitExample = data.splitExample;
                 _descriptionsIndexForHash = data.descriptionsIndexForHash;
+                _isHashDescNeed = data.isHashDescNeed;
             }
         }
 
@@ -34,7 +36,7 @@ namespace docxParserForms.DocxHandler
             try
             {
                 ImageHandler.ExtractImages(filepath, images, imageTypes);
-                var descriptionsHash = TextHandler.CollectDescriptionsFromText(filepath);
+                var descriptionsHash = _isHashDescNeed ? TextHandler.CollectDescriptionsFromText(filepath) : null;
 
                 using (var wordDocument = WordprocessingDocument.Open(filepath, false))
                 {
@@ -59,11 +61,12 @@ namespace docxParserForms.DocxHandler
 
             if (descriptions.Count < imageCount || descriptions.Count == imageCount)
             {
-                if (descriptionsHash != null)
+                if (descriptionsHash != null && _isHashDescNeed)
                 {
                     CompareHashAndDescriptions(descriptions, descriptionsHash, imageCount);
                 }
-                for (var i = descriptions.Count; i < imageCount; i++)
+                
+                while(descriptions.Count < imageCount)
                     descriptions.Add("");
             }
             else if (descriptions.Count > imageCount)
@@ -103,7 +106,7 @@ namespace docxParserForms.DocxHandler
             }
         }
 
-        private void HandleParagraphsInBody(WordprocessingDocument wordDocument, ICollection<string> descriptions, int imagesCount, Hashtable descriptionsHash)
+        private void HandleParagraphsInBody(WordprocessingDocument wordDocument, ICollection<string> descriptions, int imagesCount, Hashtable? descriptionsHash)
         {
             var body = wordDocument.MainDocumentPart.Document.Body;
 

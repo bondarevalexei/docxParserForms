@@ -7,8 +7,10 @@ namespace docxParserForms.DocxHandler
 {
     public static class TextHandler
     {
-        private const string KeyWords = "картинка рисунок рис. фигура фиг. изображение image figure fig. picture pic.";
-        private const string KeyWordsAnotherCase = "картинке рисунке рис. фигуре фиг. изображении image figure fig. picture pic.";
+        private static readonly string[] KeyWords = 
+            { "картинка", "рисунок", "рис.", "фигура", "фиг.", "изображение", "image", "figure", "fig.", "picture", "pic." };
+        private static readonly string[] KeyWordsAnotherCase = 
+            { "картинке", "рисунке", "рис.", "фигуре", "фиг.", "изображении", "image", "figure", "fig.", "picture", "pic." };
 
         public static Hashtable CollectDescriptionsFromText(string filepath)
         {
@@ -73,7 +75,7 @@ namespace docxParserForms.DocxHandler
 
             var isDashFirst = CompareOrdinal(splittedRun[0], "-") == 0;
 
-            return !isDashFirst 
+            return !isDashFirst
                 ? (splittedRun[0] + " " + splittedRun[1], sb.ToString().Replace("SEQ ARABIC", "").Trim())
                 : (splittedRun[1] + " " + splittedRun[2], sb.ToString().Replace("SEQ ARABIC", "").Trim());
         }
