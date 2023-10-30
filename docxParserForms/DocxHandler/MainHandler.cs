@@ -10,9 +10,8 @@ namespace docxParserForms.DocxHandler
 {
     public class MainHandler
     {
-        private readonly string _connectionString;
-        private readonly string _splitExample;
-        private readonly int _descriptionsIndexForHash;
+        private readonly string _connectionString, _splitExample;
+        private readonly int _descriptionsIndexForHash, _minImageWidth, _minImageHeight;
         private readonly bool _isHashDescNeed;
 
         public MainHandler()
@@ -21,10 +20,8 @@ namespace docxParserForms.DocxHandler
             {
                 var json = sr.ReadToEnd();
                 dynamic data = JObject.Parse(json);
-                _connectionString = data.connectionString;
-                _splitExample = data.splitExample;
-                _descriptionsIndexForHash = data.descriptionsIndexForHash;
-                _isHashDescNeed = data.isHashDescNeed;
+                (_connectionString, _splitExample, _descriptionsIndexForHash, _minImageWidth, _minImageHeight)
+                    = (data.connectionString, data.splitExample, data.descriptionsIndexForHash, data.minImageWidth, data.minImageHeight);
             }
         }
 
@@ -36,17 +33,21 @@ namespace docxParserForms.DocxHandler
             try
             {
                 ImageHandler.ExtractImages(filepath, images, imageTypes);
-                var descriptionsHash = _isHashDescNeed ? TextHandler.CollectDescriptionsFromText(filepath) : null;
+                var descriptionsHash = TextHandler.CollectDescriptionsFromText(filepath);
+                var isHashUsed = false;
 
                 using (var wordDocument = WordprocessingDocument.Open(filepath, false))
                 {
-                    HandleParagraphsInBody(wordDocument, descriptions, images.Count, descriptionsHash);
+                    HandleParagraphsInBody(wordDocument, descriptions, images.Count, descriptionsHash, ref isHashUsed);
                 }
 
-                CheckDescriptions(descriptions, images.Count, descriptionsHash);
+                CheckDescriptions(descriptions, images.Count, descriptionsHash, isHashUsed);
                 WriteDataInModelsList(images, descriptions, models, filepath, imageTypes);
+                descriptionsHash?.Clear();
+                images.Clear(); descriptions.Clear(); imageTypes.Clear();
+
                 //DbHandler.SaveToDb(descriptions, images, _connectionString);
-                MessageBox.Show($"Файл {filepath} успешно обработан. Добавлено {descriptions.Count} элемента(ов).");
+                MessageBox.Show($"Файл {filepath} успешно обработан. Добавлено {models.Count} элемента(ов).");
             }
             catch (Exception ex)
             {
@@ -56,17 +57,21 @@ namespace docxParserForms.DocxHandler
             return models;
         }
 
-        private void CheckDescriptions(IList<string> descriptions, int imageCount, Hashtable descriptionsHash)
+        private void CheckDescriptions(IList<string> descriptions, int imageCount,
+            Hashtable? descriptionsHash, bool isHashUsed)
         {
 
             if (descriptions.Count < imageCount || descriptions.Count == imageCount)
             {
-                if (descriptionsHash != null && _isHashDescNeed)
+                if (descriptionsHash != null)
                 {
-                    CompareHashAndDescriptions(descriptions, descriptionsHash, imageCount);
+                    if (!isHashUsed)
+                    {
+                        CompareHashAndDescriptions(descriptions, descriptionsHash, imageCount);
+                    }
                 }
-                
-                while(descriptions.Count < imageCount)
+
+                while (descriptions.Count < imageCount)
                     descriptions.Add("");
             }
             else if (descriptions.Count > imageCount)
@@ -74,7 +79,7 @@ namespace docxParserForms.DocxHandler
                     descriptions.RemoveAt(-1);
         }
 
-        private void CompareHashAndDescriptions(IList<string> descriptions, IDictionary descriptionsHash, int imageCount)
+        private void CompareHashAndDescriptions(IList<string> descriptions, IDictionary? descriptionsHash, int imageCount)
         {
             if (descriptions.Count == 0)
             {
@@ -106,7 +111,8 @@ namespace docxParserForms.DocxHandler
             }
         }
 
-        private void HandleParagraphsInBody(WordprocessingDocument wordDocument, ICollection<string> descriptions, int imagesCount, Hashtable? descriptionsHash)
+        private void HandleParagraphsInBody(WordprocessingDocument wordDocument, ICollection<string> descriptions,
+            int imagesCount, Hashtable? descriptionsHash, ref bool isHashUsed)
         {
             var body = wordDocument.MainDocumentPart.Document.Body;
 
@@ -156,7 +162,7 @@ namespace docxParserForms.DocxHandler
                     }
                     else
                     {
-                        description = DescriptionHandler.GetDescription(paragraph, descriptionsHash);
+                        description = DescriptionHandler.GetDescription(paragraph, descriptionsHash, ref isHashUsed);
                         if (description == null
                             || description?.Trim().Length == 0
                             || descriptionsInParagraph.Count != 0
@@ -204,19 +210,30 @@ namespace docxParserForms.DocxHandler
             return false;
         }
 
-        private void WriteDataInModelsList(IReadOnlyList<Bitmap> images, IReadOnlyList<string> descriptions,
-            ICollection<Model> models, string path, IReadOnlyList<string> imageTypes)
+        private void WriteDataInModelsList(IList<Bitmap> images, IList<string> descriptions,
+            ICollection<Model> models, string path, IList<string> imageTypes)
         {
             for (var i = 0; i < descriptions.Count; i++)
-                models.Add(new Model
+            {
+                if (images[i].Width >= _minImageWidth && images[i].Height >= _minImageHeight)
                 {
-                    Description = descriptions[i],
-                    Image = images[i],
-                    Filename = path.Split('\\')[^1],
-                    ImageFormat = imageTypes[i],
-                    Width = images[i].Width,
-                    Height = images[i].Height,
-                });
+                    models.Add(new Model
+                    {
+                        Description = descriptions[i],
+                        Image = images[i],
+                        Filename = path.Split('\\')[^1],
+                        ImageFormat = imageTypes[i],
+                        Width = images[i].Width,
+                        Height = images[i].Height,
+                    });
+                }
+                else
+                {
+                    images.RemoveAt(i);
+                    descriptions.RemoveAt(i);
+                    imageTypes.RemoveAt(i);
+                }
+            }
         }
 
         private void ClearTempData(ref string? description, IList descriptionsInParagraph,

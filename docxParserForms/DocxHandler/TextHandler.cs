@@ -21,6 +21,8 @@ namespace docxParserForms.DocxHandler
             {
                 var splittedRun = run.Content.ToString().Split(' ');
 
+                if(splittedRun.Length < 2) continue;
+
                 var isAnotherCase = 0;
                 if (CheckFirstWord(splittedRun)) isAnotherCase = 1;
                 else if (CheckFirstWords(splittedRun)) isAnotherCase = 2;

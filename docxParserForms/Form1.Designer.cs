@@ -41,9 +41,10 @@
             // 
             // button1
             // 
-            button1.Location = new Point(95, 280);
+            button1.Font = new Font("Segoe UI", 15F, FontStyle.Regular, GraphicsUnit.Point);
+            button1.Location = new Point(12, 169);
             button1.Name = "button1";
-            button1.Size = new Size(137, 24);
+            button1.Size = new Size(373, 44);
             button1.TabIndex = 0;
             button1.Text = "Открыть файл";
             button1.UseVisualStyleBackColor = true;
@@ -58,35 +59,38 @@
             // richTextBox1
             // 
             richTextBox1.EnableAutoDragDrop = true;
-            richTextBox1.Location = new Point(26, 123);
+            richTextBox1.Font = new Font("Segoe UI", 15F, FontStyle.Regular, GraphicsUnit.Point);
+            richTextBox1.Location = new Point(12, 12);
             richTextBox1.Name = "richTextBox1";
-            richTextBox1.Size = new Size(288, 151);
+            richTextBox1.Size = new Size(373, 151);
             richTextBox1.TabIndex = 1;
             richTextBox1.Text = "Перетащите файлы или воспользуйтесь кнопкой.";
             richTextBox1.TextChanged += richTextBox1_TextChanged;
             // 
             // pictureBox
             // 
-            pictureBox.Location = new Point(342, 12);
+            pictureBox.Location = new Point(12, 271);
             pictureBox.Name = "pictureBox";
-            pictureBox.Size = new Size(319, 262);
+            pictureBox.Size = new Size(373, 363);
             pictureBox.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox.TabIndex = 2;
             pictureBox.TabStop = false;
             // 
             // descriptionBox
             // 
-            descriptionBox.Location = new Point(342, 280);
+            descriptionBox.Font = new Font("Segoe UI", 15F, FontStyle.Regular, GraphicsUnit.Point);
+            descriptionBox.Location = new Point(405, 12);
             descriptionBox.Multiline = true;
             descriptionBox.Name = "descriptionBox";
-            descriptionBox.Size = new Size(319, 75);
+            descriptionBox.Size = new Size(591, 622);
             descriptionBox.TabIndex = 3;
             // 
             // prevButton
             // 
-            prevButton.Location = new Point(342, 361);
+            prevButton.Font = new Font("Segoe UI", 15F, FontStyle.Regular, GraphicsUnit.Point);
+            prevButton.Location = new Point(240, 676);
             prevButton.Name = "prevButton";
-            prevButton.Size = new Size(109, 28);
+            prevButton.Size = new Size(161, 41);
             prevButton.TabIndex = 4;
             prevButton.Text = "Предыдущый";
             prevButton.UseVisualStyleBackColor = true;
@@ -94,9 +98,10 @@
             // 
             // nextButton
             // 
-            nextButton.Location = new Point(552, 362);
+            nextButton.Font = new Font("Segoe UI", 15F, FontStyle.Regular, GraphicsUnit.Point);
+            nextButton.Location = new Point(532, 676);
             nextButton.Name = "nextButton";
-            nextButton.Size = new Size(109, 27);
+            nextButton.Size = new Size(161, 41);
             nextButton.TabIndex = 5;
             nextButton.Text = "Следующий";
             nextButton.UseVisualStyleBackColor = true;
@@ -105,9 +110,10 @@
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new Point(485, 370);
+            label1.Font = new Font("Segoe UI", 15F, FontStyle.Regular, GraphicsUnit.Point);
+            label1.Location = new Point(439, 682);
             label1.Name = "label1";
-            label1.Size = new Size(30, 15);
+            label1.Size = new Size(52, 28);
             label1.TabIndex = 6;
             label1.Text = "0 / 0";
             // 
@@ -115,7 +121,7 @@
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(684, 411);
+            ClientSize = new Size(1008, 729);
             Controls.Add(label1);
             Controls.Add(nextButton);
             Controls.Add(prevButton);

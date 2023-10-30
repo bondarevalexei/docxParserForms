@@ -8,7 +8,7 @@ namespace docxParserForms.DocxHandler
     {
         private static readonly string[] KeyWords = { "картинка", "рисунок", "рис.", "фигура", "фиг.", "изображение", "image", "figure", "fig.", "picture", "pic." };
 
-        public static string? GetDescription(Paragraph paragraph, Hashtable? descriptionsHash)
+        public static string? GetDescription(Paragraph paragraph, Hashtable? descriptionsHash, ref bool isHashUsed)
         {
             var stringBuilder = new StringBuilder();
             foreach (var run in paragraph.Elements<Run>())
@@ -20,13 +20,12 @@ namespace docxParserForms.DocxHandler
                 var splittedLine = line.Split(' ');
                 if (splittedLine[0].Trim().Length <= 3 || !KeyWords.Contains(splittedLine[0].ToLower())) continue;
 
-                if (descriptionsHash == null)
-                    return TakeDataFromString(splittedLine, splittedLine[0]);
-
                 var keyWord = splittedLine[0] + " " + splittedLine[1];
-                return descriptionsHash.Contains(keyWord)
-                    ? descriptionsHash[keyWord]?.ToString()
-                    : TakeDataFromString(splittedLine, splittedLine[0]);
+                if (descriptionsHash == null || !descriptionsHash.ContainsKey(keyWord))
+                    return TakeDataFromString(splittedLine, splittedLine[0]);
+                
+                isHashUsed = true;
+                return descriptionsHash[keyWord]?.ToString();
 
             }
 
