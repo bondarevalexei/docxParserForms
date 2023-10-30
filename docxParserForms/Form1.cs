@@ -35,6 +35,7 @@ namespace docxParserForms
             foreach (var file in openFileDialog1.FileNames)
                 _modelList.AddRange(_handlerDocx.HandleFile(file));
 
+            _index = 0;
             _count = _modelList.Count;
             if (_count > 0)
             {
@@ -59,6 +60,15 @@ namespace docxParserForms
                 if (item.EndsWith(".docx"))
                     _modelList.AddRange(_handlerDocx.HandleFile(item)); ;
 
+            _index = 0;
+            _count = _modelList.Count;
+            if (_count > 0)
+            {
+                label1.Text = (_index + 1) + " / " + _count;
+                ShowModel(_modelList[0]);
+            }
+
+            CheckButtons();
             CheckForEmptyTextBox();
         }
 

@@ -1,6 +1,8 @@
 ﻿using System.Collections;
+using System.Globalization;
 using DocumentFormat.OpenXml.Wordprocessing;
 using System.Text;
+using static System.Double;
 
 namespace docxParserForms.DocxHandler
 {
@@ -36,12 +38,15 @@ namespace docxParserForms.DocxHandler
         {
             var sb = new StringBuilder();
             const string separators = ".,;:-+*/\\–";
+            IFormatProvider formatter = new NumberFormatInfo { NumberDecimalSeparator = "." };
+            var style = NumberStyles.Number | NumberStyles.AllowCurrencySymbol;
 
             foreach (var line in splittedLine)
             {
                 if (line.StartsWith(keyWord, StringComparison.OrdinalIgnoreCase)
+                    || CheckForNumber(line, style, formatter)
                     || line.Length == 0
-                    || double.TryParse(line, out _)
+                    || TryParse(line, style, formatter, out _)
                     || separators.Contains(line.ToCharArray()[0].ToString()))
                     continue;
 
@@ -50,6 +55,12 @@ namespace docxParserForms.DocxHandler
             }
 
             return sb.ToString().Replace("SEQ ARABIC", "").Trim();
+        }
+
+        private static bool CheckForNumber(string line, NumberStyles style, IFormatProvider formatter)
+        {
+            if (line.Length >= 1) return line.EndsWith('.') && TryParse(line[..^1], style, formatter, out _);
+            return false;
         }
 
         public static void HandleDescriptionToImages(List<string> descriptions, string _splitExample)

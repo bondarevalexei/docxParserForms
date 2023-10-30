@@ -12,7 +12,7 @@ namespace docxParserForms.DocxHandler
     {
         private readonly string _connectionString, _splitExample;
         private readonly int _descriptionsIndexForHash, _minImageWidth, _minImageHeight;
-        private readonly bool _isHashDescNeed;
+        private readonly bool _isHashDescNeed, _isPatent;
 
         public MainHandler()
         {
@@ -20,8 +20,8 @@ namespace docxParserForms.DocxHandler
             {
                 var json = sr.ReadToEnd();
                 dynamic data = JObject.Parse(json);
-                (_connectionString, _splitExample, _descriptionsIndexForHash, _minImageWidth, _minImageHeight)
-                    = (data.connectionString, data.splitExample, data.descriptionsIndexForHash, data.minImageWidth, data.minImageHeight);
+                (_connectionString, _splitExample, _descriptionsIndexForHash, _minImageWidth, _minImageHeight, _isPatent)
+                    = (data.connectionString, data.splitExample, data.descriptionsIndexForHash, data.minImageWidth, data.minImageHeight, data.isPatent);
             }
         }
 
@@ -65,10 +65,9 @@ namespace docxParserForms.DocxHandler
             {
                 if (descriptionsHash != null)
                 {
-                    if (!isHashUsed)
-                    {
+                    if (!isHashUsed || Compare(descriptions[_descriptionsIndexForHash], "") == 0 && _isPatent)
                         CompareHashAndDescriptions(descriptions, descriptionsHash, imageCount);
-                    }
+
                 }
 
                 while (descriptions.Count < imageCount)
