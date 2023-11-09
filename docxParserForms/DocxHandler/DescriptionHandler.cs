@@ -61,7 +61,7 @@ namespace docxParserForms.DocxHandler
             return sb.ToString().Replace("SEQ ARABIC", "").Trim();
         }
 
-        private static bool CheckForNumber(string line, NumberStyles style, IFormatProvider formatter)
+        public static bool CheckForNumber(string line, NumberStyles style, IFormatProvider formatter)
         {
             if (line.Length >= 1) return line.EndsWith('.') && TryParse(line[..^1], style, formatter, out _);
             return false;

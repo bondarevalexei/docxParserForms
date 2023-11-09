@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json.Linq;
 using SautinSoft.Document;
+using System.Globalization;
 using Paragraph = SautinSoft.Document.Paragraph;
-using System.Linq;
 
 namespace docxParserForms.DocxHandler
 {
@@ -71,6 +71,11 @@ namespace docxParserForms.DocxHandler
 
         private void CompareImagesWithDescriptions(ICollection<string> descriptions, List<int> imagesCountInRuns, SortedDictionary<string, string> descriptionsHash)
         {
+            for(int i = 0; i < _descriptionsIndexForHash; i++)
+            {
+                descriptions.Add("");
+            }
+
             for(int i = 0; i < imagesCountInRuns.Count; i++)
             {
                 var key = FindDescription(descriptionsHash, i);
@@ -93,6 +98,8 @@ namespace docxParserForms.DocxHandler
                     }
                     else
                         descriptions.Add(descriptionsHash.GetValueOrDefault(key));
+
+                    descriptionsHash.Remove(key);
                 }
                 else
                 {
@@ -105,9 +112,14 @@ namespace docxParserForms.DocxHandler
         {
             foreach(var key in descriptionsHash.Keys)
             {
+                IFormatProvider formatter = new NumberFormatInfo { NumberDecimalSeparator = "." };
+                var style = NumberStyles.Number | NumberStyles.AllowCurrencySymbol;
+
+                if (DescriptionHandler.CheckForNumber(key.Split(' ')[1], style, formatter)) 
+                    return key;
+
                 double temp;
                 double.TryParse(key.Split(' ')[1], out temp);
-
                 if ((int)temp == i + 1) return key;
             }
 
