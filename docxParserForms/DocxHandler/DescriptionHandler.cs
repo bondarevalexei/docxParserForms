@@ -1,8 +1,9 @@
 ﻿using System.Collections;
 using System.Globalization;
-using DocumentFormat.OpenXml.Wordprocessing;
 using System.Text;
+using SautinSoft.Document;
 using static System.Double;
+// using Run = DocumentFormat.OpenXml.Wordprocessing.Run;
 
 namespace docxParserForms.DocxHandler
 {
@@ -13,8 +14,11 @@ namespace docxParserForms.DocxHandler
         public static string? GetDescription(Paragraph paragraph, Hashtable? descriptionsHash, ref bool isHashUsed)
         {
             var stringBuilder = new StringBuilder();
-            foreach (var run in paragraph.Elements<Run>())
-                stringBuilder.Append(run.InnerText);
+            foreach (var element in paragraph.GetChildElements(false, ElementType.Run))
+            {
+                var run = (Run)element;
+                stringBuilder.Append(run.Text);
+            }
 
             var splittedText = stringBuilder.ToString().Split(Environment.NewLine);
             foreach (var line in splittedText)
@@ -25,7 +29,7 @@ namespace docxParserForms.DocxHandler
                 var keyWord = splittedLine[0] + " " + splittedLine[1];
                 if (descriptionsHash == null || !descriptionsHash.ContainsKey(keyWord))
                     return TakeDataFromString(splittedLine, splittedLine[0]);
-                
+
                 isHashUsed = true;
                 return descriptionsHash[keyWord]?.ToString();
 
@@ -63,47 +67,49 @@ namespace docxParserForms.DocxHandler
             return false;
         }
 
-        public static void HandleDescriptionToImages(List<string> descriptions, string _splitExample)
+        public static bool IsDescriptionDevided(string description, string splitExample)
         {
-            List<string> temp = new();
-            temp.AddRange(descriptions);
-            descriptions.Clear();
+            var separators = splitExample.Split("; ");
+            separators = separators.Where(sep => sep != null || sep?.Length != 0).ToArray();
+
+            if (description.Contains(separators[0])) return true;
+
+            return false;
+        }
+
+        public static List<string> HandleDescriptionToMany(string description, string _splitExample)
+        {
+            List<string> res = new();
 
             var separators = _splitExample.Split("; ");
             separators = separators.Where(sep => sep != null || sep?.Length != 0).ToArray();
 
             int sepIndex = 0, curIndex = 0;
 
-            foreach (var t in temp)
+            if (description.Contains(separators[sepIndex]))
             {
-                if (t.Contains(separators[sepIndex]))
+                curIndex = description.IndexOf(separators[sepIndex], StringComparison.Ordinal);
+                while (true)
                 {
-                    curIndex = t.IndexOf(separators[sepIndex], StringComparison.Ordinal);
-                    while (true)
+                    sepIndex++;
+
+                    StringBuilder tempString = new();
+                    var splittedDescr = description.Split(' ');
+
+                    while (curIndex < splittedDescr.Length && splittedDescr[curIndex] != separators[sepIndex])
                     {
-                        sepIndex++;
-
-                        StringBuilder tempString = new();
-                        var splittedDescr = t.Split(' ');
-
-                        while (curIndex < splittedDescr.Length && splittedDescr[curIndex] != separators[sepIndex])
-                        {
-                            tempString.Append(splittedDescr[curIndex++]).Append(' ');
-                        }
-
-                        descriptions.Add(DescriptionHandler.TakeDataFromString(tempString.ToString().Split(' '), separators[sepIndex]));
-                        curIndex++;
-
-                        if (curIndex >= splittedDescr.Length - 1)
-                            break;
+                        tempString.Append(splittedDescr[curIndex++]).Append(' ');
                     }
-                }
-                else
-                {
-                    sepIndex = 0;
-                    descriptions.Add(t);
+
+                    res.Add(DescriptionHandler.TakeDataFromString(tempString.ToString().Split(' '), separators[sepIndex]));
+                    curIndex++;
+
+                    if (curIndex >= splittedDescr.Length - 1)
+                        break;
                 }
             }
+
+            return res;
         }
     }
 }

@@ -1,10 +1,7 @@
-﻿using System.Collections;
-using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Wordprocessing;
-using Newtonsoft.Json.Linq;
-using static System.String;
-using Paragraph = DocumentFormat.OpenXml.Wordprocessing.Paragraph;
-using Run = DocumentFormat.OpenXml.Wordprocessing.Run;
+﻿using Newtonsoft.Json.Linq;
+using SautinSoft.Document;
+using Paragraph = SautinSoft.Document.Paragraph;
+using System.Linq;
 
 namespace docxParserForms.DocxHandler
 {
@@ -12,17 +9,15 @@ namespace docxParserForms.DocxHandler
     {
         private readonly string _connectionString, _splitExample;
         private readonly int _descriptionsIndexForHash, _minImageWidth, _minImageHeight;
-        private readonly bool _isHashDescNeed, _isPatent;
+        private readonly bool _isPatent;
 
         public MainHandler()
         {
-            using (StreamReader sr = new("./../../../appsettings.json"))
-            {
-                var json = sr.ReadToEnd();
-                dynamic data = JObject.Parse(json);
-                (_connectionString, _splitExample, _descriptionsIndexForHash, _minImageWidth, _minImageHeight, _isPatent)
-                    = (data.connectionString, data.splitExample, data.descriptionsIndexForHash, data.minImageWidth, data.minImageHeight, data.isPatent);
-            }
+            using StreamReader sr = new("./../../../appsettings.json");
+            var json = sr.ReadToEnd();
+            dynamic data = JObject.Parse(json);
+            (_connectionString, _splitExample, _descriptionsIndexForHash, _minImageWidth, _minImageHeight, _isPatent)
+                = (data.connectionString, data.splitExample, data.descriptionsIndexForHash, data.minImageWidth, data.minImageHeight, data.isPatent);
         }
 
         public List<Model> HandleFile(string filepath)
@@ -34,16 +29,10 @@ namespace docxParserForms.DocxHandler
             {
                 ImageHandler.ExtractImages(filepath, images, imageTypes);
                 var descriptionsHash = TextHandler.CollectDescriptionsFromText(filepath);
-                var isHashUsed = false;
-
-                using (var wordDocument = WordprocessingDocument.Open(filepath, false))
-                {
-                    HandleParagraphsInBody(wordDocument, descriptions, images.Count, descriptionsHash, ref isHashUsed);
-                }
-
-                CheckDescriptions(descriptions, images.Count, descriptionsHash, isHashUsed);
+                HandleParagraphsInBody(descriptions, descriptionsHash, filepath);
+                CheckDescriptions(descriptions, images.Count);
                 WriteDataInModelsList(images, descriptions, models, filepath, imageTypes);
-                descriptionsHash?.Clear();
+                descriptionsHash.Clear();
                 images.Clear(); descriptions.Clear(); imageTypes.Clear();
 
                 //DbHandler.SaveToDb(descriptions, images, _connectionString);
@@ -57,156 +46,81 @@ namespace docxParserForms.DocxHandler
             return models;
         }
 
-        private void CheckDescriptions(IList<string> descriptions, int imageCount,
-            Hashtable? descriptionsHash, bool isHashUsed)
+        private void CheckDescriptions(IList<string> descriptions, int imageCount)
         {
-
-            if (descriptions.Count < imageCount || descriptions.Count == imageCount)
-            {
-                if (descriptionsHash != null)
-                {
-                    if (!isHashUsed || Compare(descriptions[_descriptionsIndexForHash], "") == 0 && _isPatent)
-                        CompareHashAndDescriptions(descriptions, descriptionsHash, imageCount);
-
-                }
-
-                while (descriptions.Count < imageCount)
-                    descriptions.Add("");
-            }
-            else if (descriptions.Count > imageCount)
-                for (var i = 0; i < imageCount - descriptions.Count; i++)
-                    descriptions.RemoveAt(-1);
+            while (descriptions.Count < imageCount)
+                descriptions.Add("");
         }
 
-        private void CompareHashAndDescriptions(IList<string> descriptions, IDictionary? descriptionsHash, int imageCount)
+        private void HandleParagraphsInBody(ICollection<string> descriptions,
+            SortedDictionary<string, string> descriptionsHash, string filePath)
         {
-            if (descriptions.Count == 0)
+            var dc = DocumentCore.Load(filePath);
+            List<int> imagesCountInRuns = new();
+
+            foreach (var element in dc.GetChildElements(true, ElementType.Paragraph))
             {
-                for (var i = 0; i < _descriptionsIndexForHash; i++)
-                    descriptions.Add("");
-
-                foreach (string key in descriptionsHash.Keys)
-                    descriptions.Add(descriptionsHash[key].ToString());
-
-                while (descriptions.Count != imageCount)
-                    descriptions.Add("");
+                var paragraph = (Paragraph)element;
+                    var imagesCountInParagraph = CountImagesForParagraph(paragraph);
+                    if (imagesCountInParagraph > 0) 
+                        imagesCountInRuns.Add(imagesCountInParagraph);
             }
-            else
-            {
-                while (descriptions.Count < _descriptionsIndexForHash)
-                    descriptions.Add("");
 
-                var temp = _descriptionsIndexForHash;
-
-                foreach (string key in descriptionsHash.Keys)
-                {
-                    if (descriptions.Count > temp)
-                        descriptions[temp++] = descriptionsHash[key].ToString();
-                    else descriptions.Add(descriptionsHash[key].ToString());
-                }
-
-                while (descriptions.Count != imageCount)
-                    descriptions.Add("");
-            }
+            CompareImagesWithDescriptions(descriptions, imagesCountInRuns, descriptionsHash);
         }
 
-        private void HandleParagraphsInBody(WordprocessingDocument wordDocument, ICollection<string> descriptions,
-            int imagesCount, Hashtable? descriptionsHash, ref bool isHashUsed)
+        private void CompareImagesWithDescriptions(ICollection<string> descriptions, List<int> imagesCountInRuns, SortedDictionary<string, string> descriptionsHash)
         {
-            var body = wordDocument.MainDocumentPart.Document.Body;
-
-            List<string> descriptionsInParagraph = new();
-            string? description = null;
-            var (paragraphCounter, tempImagesCount) = (0, 0);
-
-            var isDescriptionContains = false;
-            foreach (var paragraph in body.Descendants<Paragraph>())
+            for(int i = 0; i < imagesCountInRuns.Count; i++)
             {
-                paragraphCounter++;
-
-                foreach (var run in paragraph.Descendants<Run>())
-                {
-                    var handledImagesCount = descriptions.Count;
-
-                    if (descriptions.Count >= imagesCount)
+                var key = FindDescription(descriptionsHash, i);
+                if (key != null) {
+                    if (imagesCountInRuns[i] > 1)
                     {
-                        ClearTempData(ref description, descriptionsInParagraph, ref paragraphCounter);
-                        return;
-                    }
-
-                    var imagesCountInRun = run.Descendants<Drawing>().Count();
-                    if (imagesCountInRun > 0)
-                    {
-                        if (!isDescriptionContains)
+                        if (DescriptionHandler.IsDescriptionDevided(descriptionsHash.GetValueOrDefault(key), _splitExample))
                         {
-                            if (tempImagesCount == 0)
+                            var tempDescr = DescriptionHandler.HandleDescriptionToMany(descriptionsHash.GetValueOrDefault(key), _splitExample);
+                            for (int j = 0; j < Math.Min(tempDescr.Count, imagesCountInRuns[i]); j++)
                             {
-                                tempImagesCount = imagesCountInRun;
-                                continue;
+                                descriptions.Add(tempDescr[j]);
                             }
 
-                            while (descriptions.Count != handledImagesCount + tempImagesCount)
+                            while (tempDescr.Count < imagesCountInRuns[i])
                             {
                                 descriptions.Add("");
                             }
-
-                            tempImagesCount = imagesCountInRun;
-                            ClearTempData(ref description, descriptionsInParagraph, ref paragraphCounter);
-                        }
-                        else
-                        {
-                            Checker(descriptionsInParagraph, ref paragraphCounter, tempImagesCount, ref description,
-                                descriptions);
                         }
                     }
                     else
-                    {
-                        description = DescriptionHandler.GetDescription(paragraph, descriptionsHash, ref isHashUsed);
-                        if (description == null
-                            || description?.Trim().Length == 0
-                            || descriptionsInParagraph.Count != 0
-                            && CompareOrdinal(description, descriptionsInParagraph[^1]) == 0)
-                            continue;
-
-                        descriptionsInParagraph.Add(description);
-                        if (descriptionsInParagraph.Count == tempImagesCount)
-                            break;
-                        isDescriptionContains = true;
-                        break;
-                    }
+                        descriptions.Add(descriptionsHash.GetValueOrDefault(key));
                 }
-
-                Checker(descriptionsInParagraph, ref paragraphCounter, tempImagesCount, ref description, descriptions);
+                else
+                {
+                    descriptions.Add("");
+                }
             }
         }
 
-        private void Checker(List<string> descriptionsInParagraph,
-            ref int paragraphCounter, int tempImagesCount, ref string? description, ICollection<string> descriptions)
+        private string? FindDescription(SortedDictionary<string, string> descriptionsHash, int i)
         {
-            if (CheckDescriptionsAndImages(descriptionsInParagraph, ref paragraphCounter, tempImagesCount)) return;
-
-            if (AddNewLinesToLists(descriptions, descriptionsInParagraph) || paragraphCounter > 1)
-                ClearTempData(ref description, descriptionsInParagraph, ref paragraphCounter);
-        }
-
-        private bool CheckDescriptionsAndImages(List<string> descriptionsInParagraph,
-            ref int paragraphCounter, int tempImagesCount)
-        {
-            descriptionsInParagraph = descriptionsInParagraph.Where(_ => true).ToList();
-
-            if (descriptionsInParagraph.Count == 0) return true;
-
-            if (tempImagesCount == 0)
+            foreach(var key in descriptionsHash.Keys)
             {
-                paragraphCounter = 0;
-                descriptionsInParagraph.Clear();
-                return true;
+                double temp;
+                double.TryParse(key.Split(' ')[1], out temp);
+
+                if ((int)temp == i + 1) return key;
             }
 
-            if (descriptionsInParagraph.Count < tempImagesCount)
-                DescriptionHandler.HandleDescriptionToImages(descriptionsInParagraph, _splitExample);
+            return null;
+        }
 
-            return false;
+        private int CountImagesForParagraph(Element el)
+        {
+            var count = 0;
+            Paragraph par = (Paragraph)el;
+            count += (from picture in par.GetChildElements(true, ElementType.Picture)
+                      select picture).Count();
+            return count;
         }
 
         private void WriteDataInModelsList(IList<Bitmap> images, IList<string> descriptions,
@@ -233,22 +147,6 @@ namespace docxParserForms.DocxHandler
                     imageTypes.RemoveAt(i);
                 }
             }
-        }
-
-        private void ClearTempData(ref string? description, IList descriptionsInParagraph,
-                ref int paragraphCounter)
-        {
-            description = null;
-            descriptionsInParagraph.Clear();
-            paragraphCounter = 0;
-        }
-
-        private bool AddNewLinesToLists(ICollection<string> descriptions, List<string> tempDescriptions)
-        {
-            foreach (var description in tempDescriptions)
-                descriptions.Add(description);
-
-            return true;
         }
     }
 }
