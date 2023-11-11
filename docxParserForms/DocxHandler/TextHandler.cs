@@ -13,6 +13,7 @@ namespace docxParserForms.DocxHandler
             { "картинка", "рисунок", "рис.", "фигура", "фиг.", "изображение", "image", "figure", "fig.", "picture", "pic." };
         private static readonly string[] KeyWordsAnotherCase =
             { "картинке", "рисунке", "рис.", "фигуре", "фиг.", "изображении", "image", "figure", "fig.", "picture", "pic." };
+        private static readonly string[] TriggerWords = { "изображен", "изображены" };
 
         private static readonly IFormatProvider Formatter = new NumberFormatInfo { NumberDecimalSeparator = "." };
         private const NumberStyles Style = NumberStyles.Number | NumberStyles.AllowCurrencySymbol;
@@ -153,7 +154,8 @@ namespace docxParserForms.DocxHandler
             {
                 if (splittedRun[i].Length == 0
                     || (TryParse(splittedRun[i], Style, Formatter, out _) || CheckForNumber(splittedRun[i], Style, Formatter)) && i == isAnotherCase
-                    || separators.Contains(splittedRun[i].ToCharArray()[0].ToString()))
+                    || separators.Contains(splittedRun[i].ToCharArray()[0].ToString())
+                    || TriggerWords.Contains(splittedRun[i].ToLower()))
                     continue;
 
                 sb.Append(splittedRun[i]);

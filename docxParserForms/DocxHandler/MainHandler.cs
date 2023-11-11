@@ -61,10 +61,13 @@ namespace docxParserForms.DocxHandler
         {
             var dc = DocumentCore.Load(filePath);
             var isDescNeed = false;
-            var tempImagesCount = 0;
+            List<string> descriptionsBefore = new();
+            var (tempImagesCount, parAfter, isBefore) = (0, 0, false);
 
             foreach (var element in dc.GetChildElements(true, ElementType.Paragraph))
             {
+                if (isDescNeed) parAfter++;
+
                 var paragraph = (Paragraph)element;
                 var childElements = paragraph.GetChildElements(true).ToList();
 
@@ -74,19 +77,51 @@ namespace docxParserForms.DocxHandler
                     if (isDescNeed)
                     {
                         while (descriptions.Count < tempImagesCount)
-                            descriptions.Add("");
+                        {
+                            if (descriptionsBefore.Count != 0)
+                            {
+                                descriptions.Add(descriptionsBefore[0]);
+                                descriptionsBefore.RemoveAt(0);
+                            }
+                            else
+                            {
+                                descriptions.Add("");
+                            }
+                        }
 
                         isDescNeed = false;
+                        parAfter = 0;
                     }
 
                     tempImagesCount += imagesCountInParagraph;
-                    CheckRuns(childElements, descriptionsHash, descriptions);
+                    CheckRuns(childElements, descriptionsHash, descriptions, isBefore, descriptionsBefore);
                 }
                 else
                 {
-                    if(isDescNeed)
+                    if (isDescNeed)
                     {
-                        CheckRuns(childElements, descriptionsHash, descriptions);
+                        if (parAfter <= 20)
+                            CheckRuns(childElements, descriptionsHash, descriptions, isBefore, descriptionsBefore);
+                        else
+                        {
+                            if (descriptionsBefore.Count != 0)
+                            {
+                                descriptions.Add(descriptionsBefore[0]);
+                                descriptionsBefore.RemoveAt(0);
+                            }
+                            else
+                            {
+                                descriptions.Add("");
+                            }
+
+                            isDescNeed = false;
+                            parAfter = 0;
+                        }
+                    }
+                    else
+                    {
+                        isBefore = true;
+                        CheckRuns(childElements, descriptionsHash, descriptions, isBefore, descriptionsBefore);
                     }
                 }
 
@@ -94,7 +129,8 @@ namespace docxParserForms.DocxHandler
             }
         }
 
-        private void CheckRuns(List<Element> childElements, Hashtable? descriptionsHash, ICollection<string> descriptions)
+        private void CheckRuns(List<Element> childElements, Hashtable? descriptionsHash,
+            ICollection<string> descriptions, bool isBefore, List<string> descriptionsBefore)
         {
             bool isKeyUsed = false;
             StringBuilder sb = new();
@@ -115,11 +151,12 @@ namespace docxParserForms.DocxHandler
                         continue;
                     }
 
-                    string? description = !isKeyUsed 
-                        ? DescriptionHandler.GetDescription(run.Text, descriptionsHash) 
+                    string? description = !isKeyUsed
+                        ? DescriptionHandler.GetDescription(run.Text, descriptionsHash)
                         : DescriptionHandler.GetDescription(sb.ToString().Trim(), descriptionsHash);
 
-                    AddDescription(description, descriptions);
+                    AddDescription(description, !isBefore ? descriptions : descriptionsBefore);
+
 
                     isKeyUsed = false;
                     tempIndex = 0;
@@ -127,10 +164,10 @@ namespace docxParserForms.DocxHandler
                 }
             }
 
-            if(isKeyUsed && sb.Length != 0)
+            if (isKeyUsed && sb.Length != 0)
             {
                 string? description = DescriptionHandler.GetDescription(sb.ToString().Trim(), descriptionsHash);
-                AddDescription(description, descriptions);
+                AddDescription(description, !isBefore ? descriptions : descriptionsBefore);
             }
         }
 
