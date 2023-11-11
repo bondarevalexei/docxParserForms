@@ -219,6 +219,8 @@ namespace docxParserForms.DocxHandler
             {
                 if (images[i].Width >= _minImageWidth && images[i].Height >= _minImageHeight)
                 {
+                    var (isGraphics, graphicName) = GraphicsClassificationResult.GetClassificatorResult(images[i]);
+
                     models.Add(new Model
                     {
                         Description = descriptions[i],
@@ -227,6 +229,8 @@ namespace docxParserForms.DocxHandler
                         ImageFormat = imageTypes[i],
                         Width = images[i].Width,
                         Height = images[i].Height,
+                        IsGraphics = isGraphics,
+                        GrahicsType = isGraphics? graphicName : "-",
                     });
                 }
                 else

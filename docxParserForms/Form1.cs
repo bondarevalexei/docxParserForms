@@ -137,6 +137,12 @@ namespace docxParserForms
             sb.Append(Environment.NewLine);
             sb.Append(Environment.NewLine);
             sb.Append("Size: " + model.Width + "x" + model.Height);
+            sb.Append(Environment.NewLine);
+            sb.Append(Environment.NewLine);
+            sb.Append("IsGraphics: " + model.IsGraphics);
+            sb.Append(Environment.NewLine);
+            sb.Append(Environment.NewLine);
+            sb.Append("Graphics type: " + model.GrahicsType);
 
             descriptionBox.Text = sb.ToString().Trim();
             pictureBox.Image = model.Image;

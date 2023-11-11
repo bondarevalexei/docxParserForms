@@ -8,5 +8,7 @@
         public int Width { get; set; }
         public int Height { get; set; }
         public string ImageFormat { get; set; }
+        public bool IsGraphics { get; set; }
+        public string GrahicsType { get; set; }
     }
 }

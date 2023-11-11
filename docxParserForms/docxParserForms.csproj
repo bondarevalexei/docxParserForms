@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net6.0-windows</TargetFramework>
@@ -7,25 +6,24 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" Version="2.20.0" />
     <PackageReference Include="EntityFramework" Version="6.4.4" />
+    <PackageReference Include="Microsoft.ML" Version="1.7.1" />
+    <PackageReference Include="Microsoft.ML.Vision" Version="1.7.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="sautinsoft.document" Version="2023.9.10" />
+    <PackageReference Include="SciSharp.TensorFlow.Redist" Version="2.3.1" />
   </ItemGroup>
-
   <ItemGroup>
     <None Update="Model1.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>Model1.cs</LastGenOutput>
     </None>
   </ItemGroup>
-
   <ItemGroup>
     <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
   </ItemGroup>
-
   <ItemGroup>
     <Compile Update="Model1.cs">
       <DesignTime>True</DesignTime>
@@ -33,5 +31,16 @@
       <DependentUpon>Model1.tt</DependentUpon>
     </Compile>
   </ItemGroup>
-
+  <ItemGroup Label="GraphicsClassificator">
+    <None Include="GraphicsClassificator.consumption.cs">
+      <DependentUpon>GraphicsClassificator.mbconfig</DependentUpon>
+    </None>
+    <None Include="GraphicsClassificator.training.cs">
+      <DependentUpon>GraphicsClassificator.mbconfig</DependentUpon>
+    </None>
+    <None Include="GraphicsClassificator.zip">
+      <DependentUpon>GraphicsClassificator.mbconfig</DependentUpon>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>
