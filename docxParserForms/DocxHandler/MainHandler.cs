@@ -1,6 +1,8 @@
 ﻿using Newtonsoft.Json.Linq;
 using SautinSoft.Document;
+using System.Collections;
 using System.Globalization;
+using System.Text;
 using Paragraph = SautinSoft.Document.Paragraph;
 
 namespace docxParserForms.DocxHandler
@@ -8,16 +10,15 @@ namespace docxParserForms.DocxHandler
     public class MainHandler
     {
         private readonly string _connectionString, _splitExample;
-        private readonly int _descriptionsIndexForHash, _minImageWidth, _minImageHeight;
-        private readonly bool _isPatent;
+        private readonly int _minImageWidth, _minImageHeight;
 
         public MainHandler()
         {
             using StreamReader sr = new("./../../../appsettings.json");
             var json = sr.ReadToEnd();
             dynamic data = JObject.Parse(json);
-            (_connectionString, _splitExample, _descriptionsIndexForHash, _minImageWidth, _minImageHeight, _isPatent)
-                = (data.connectionString, data.splitExample, data.descriptionsIndexForHash, data.minImageWidth, data.minImageHeight, data.isPatent);
+            (_connectionString, _splitExample, _minImageWidth, _minImageHeight)
+                = (data.connectionString, data.splitExample, data.minImageWidth, data.minImageHeight);
         }
 
         public List<Model> HandleFile(string filepath)
@@ -50,76 +51,115 @@ namespace docxParserForms.DocxHandler
         {
             while (descriptions.Count < imageCount)
                 descriptions.Add("");
+
+            while (descriptions.Count > imageCount)
+                descriptions.RemoveAt(descriptions.Count - 1);
         }
 
         private void HandleParagraphsInBody(ICollection<string> descriptions,
-            SortedDictionary<string, string> descriptionsHash, string filePath)
+            Hashtable descriptionsHash, string filePath)
         {
             var dc = DocumentCore.Load(filePath);
-            List<int> imagesCountInRuns = new();
+            var isDescNeed = false;
+            var tempImagesCount = 0;
 
             foreach (var element in dc.GetChildElements(true, ElementType.Paragraph))
             {
                 var paragraph = (Paragraph)element;
-                    var imagesCountInParagraph = CountImagesForParagraph(paragraph);
-                    if (imagesCountInParagraph > 0) 
-                        imagesCountInRuns.Add(imagesCountInParagraph);
-            }
+                var childElements = paragraph.GetChildElements(true).ToList();
 
-            CompareImagesWithDescriptions(descriptions, imagesCountInRuns, descriptionsHash);
-        }
-
-        private void CompareImagesWithDescriptions(ICollection<string> descriptions, List<int> imagesCountInRuns, SortedDictionary<string, string> descriptionsHash)
-        {
-            for(int i = 0; i < _descriptionsIndexForHash; i++)
-            {
-                descriptions.Add("");
-            }
-
-            for(int i = 0; i < imagesCountInRuns.Count; i++)
-            {
-                var key = FindDescription(descriptionsHash, i);
-                if (key != null) {
-                    if (imagesCountInRuns[i] > 1)
+                var imagesCountInParagraph = CountImagesForParagraph(paragraph);
+                if (imagesCountInParagraph > 0)
+                {
+                    if (isDescNeed)
                     {
-                        if (DescriptionHandler.IsDescriptionDevided(descriptionsHash.GetValueOrDefault(key), _splitExample))
-                        {
-                            var tempDescr = DescriptionHandler.HandleDescriptionToMany(descriptionsHash.GetValueOrDefault(key), _splitExample);
-                            for (int j = 0; j < Math.Min(tempDescr.Count, imagesCountInRuns[i]); j++)
-                            {
-                                descriptions.Add(tempDescr[j]);
-                            }
+                        while (descriptions.Count < tempImagesCount)
+                            descriptions.Add("");
 
-                            while (tempDescr.Count < imagesCountInRuns[i])
-                            {
-                                descriptions.Add("");
-                            }
-                        }
+                        isDescNeed = false;
                     }
-                    else
-                        descriptions.Add(descriptionsHash.GetValueOrDefault(key));
 
-                    descriptionsHash.Remove(key);
+                    tempImagesCount += imagesCountInParagraph;
+                    CheckRuns(childElements, descriptionsHash, descriptions);
                 }
                 else
                 {
-                    descriptions.Add("");
+                    if(isDescNeed)
+                    {
+                        CheckRuns(childElements, descriptionsHash, descriptions);
+                    }
                 }
+
+                isDescNeed = descriptions.Count < tempImagesCount;
             }
         }
 
-        private string? FindDescription(SortedDictionary<string, string> descriptionsHash, int i)
+        private void CheckRuns(List<Element> childElements, Hashtable? descriptionsHash, ICollection<string> descriptions)
         {
-            foreach(var key in descriptionsHash.Keys)
+            bool isKeyUsed = false;
+            StringBuilder sb = new();
+            var tempIndex = 0;
+
+            foreach (var child in childElements)
+            {
+                if (child.ElementType == ElementType.Run)
+                {
+                    var run = (Run)child;
+
+                    if (DescriptionHandler.IsOnlyKey(run.Text) || tempIndex < 3 && isKeyUsed)
+                    {
+                        isKeyUsed = true;
+                        sb.Append(run.Text.Trim());
+                        sb.Append(' ');
+                        tempIndex++;
+                        continue;
+                    }
+
+                    string? description = !isKeyUsed 
+                        ? DescriptionHandler.GetDescription(run.Text, descriptionsHash) 
+                        : DescriptionHandler.GetDescription(sb.ToString().Trim(), descriptionsHash);
+
+                    AddDescription(description, descriptions);
+
+                    isKeyUsed = false;
+                    tempIndex = 0;
+                    sb.Clear();
+                }
+            }
+
+            if(isKeyUsed && sb.Length != 0)
+            {
+                string? description = DescriptionHandler.GetDescription(sb.ToString().Trim(), descriptionsHash);
+                AddDescription(description, descriptions);
+            }
+        }
+
+        private void AddDescription(string? description, ICollection<string> descriptions)
+        {
+            if (description != null)
+            {
+                if (DescriptionHandler.IsDescriptionDevided(description, _splitExample))
+                {
+                    var tempDescriptions = DescriptionHandler.HandleDescriptionToMany(description, _splitExample);
+                    foreach (var item in tempDescriptions)
+                        descriptions.Add(item);
+                }
+                else
+                    descriptions.Add(description);
+            }
+        }
+
+        private string? FindDescription(Hashtable descriptionsHash, int i)
+        {
+            foreach (string key in descriptionsHash.Keys)
             {
                 IFormatProvider formatter = new NumberFormatInfo { NumberDecimalSeparator = "." };
                 var style = NumberStyles.Number | NumberStyles.AllowCurrencySymbol;
 
-                if (DescriptionHandler.CheckForNumber(key.Split(' ')[1], style, formatter)) 
+                if (DescriptionHandler.CheckForNumber(key.Split(' ')[1], style, formatter))
                     return key;
 
-                double temp;
-                double.TryParse(key.Split(' ')[1], out temp);
+                _ = double.TryParse(key.Split(' ')[1], out double temp);
                 if ((int)temp == i + 1) return key;
             }
 

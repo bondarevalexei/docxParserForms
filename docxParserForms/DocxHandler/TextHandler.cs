@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System.Collections;
+using System.Globalization;
 using System.Text;
 using SautinSoft.Document;
 using static System.Double;
@@ -16,37 +17,101 @@ namespace docxParserForms.DocxHandler
         private static readonly IFormatProvider Formatter = new NumberFormatInfo { NumberDecimalSeparator = "." };
         private const NumberStyles Style = NumberStyles.Number | NumberStyles.AllowCurrencySymbol;
 
-        public static SortedDictionary<string, string> CollectDescriptionsFromText(string filepath)
+        public static Hashtable CollectDescriptionsFromText(string filepath)
         {
             var dc = DocumentCore.Load(filepath);
-            SortedDictionary<string,string> descriptionsDict = new();
+            Hashtable descriptionsHash = new();
 
-            foreach (var element in dc.GetChildElements(true, ElementType.Run))
+            foreach (var el in dc.GetChildElements(true, ElementType.Paragraph))
             {
-                var run = (Run)element;
+                var paragraph = (Paragraph)el;
+                var childElements = paragraph.GetChildElements(true).ToList();
 
-                try
+                CheckRunsForDescriptions(childElements, descriptionsHash);
+            }
+
+            return descriptionsHash;
+        }
+
+        private static void CheckRunsForDescriptions(List<Element> childElements, Hashtable descriptionsHash)
+        {
+            bool isKeyUsed = false;
+            StringBuilder sb = new();
+            var tempIndex = 0;
+
+            foreach (var child in childElements)
+            {
+                if (child.ElementType == ElementType.Run)
                 {
-                    var splittedRun = run.Text.Split(' ');
-                    splittedRun = splittedRun.Where(sr => true).ToArray();
+                    var run = (Run)child;
 
-                    var isAnotherCase = 0;
-                    if (CheckFirstWordAndNumber(splittedRun)) isAnotherCase = 1;
-                    else if (CheckFirstWordsAndNumber(splittedRun)) isAnotherCase = 2;
+                    if (IsOnlyKey(run.Text) || tempIndex < 3 && isKeyUsed)
+                    {
+                        isKeyUsed = true;
+                        sb.Append(run.Text.Trim());
+                        sb.Append(' ');
+                        tempIndex++;
+                        continue;
+                    }
 
-                    if (isAnotherCase == 0) continue;
+                    string? description = !isKeyUsed
+                        ? run.Text : sb.ToString().Trim();
 
-                    var (key, value) = GetDescrFromLine(splittedRun, isAnotherCase);
-                    if (value.Length != 0 && !descriptionsDict.ContainsKey(key))
-                        descriptionsDict.Add(key, value);
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception(ex.Message);
+                    if (description != null && TryToAddDescription(description, descriptionsHash))
+                        continue;
+
+                    isKeyUsed = false;
+                    tempIndex = 0;
+                    sb.Clear();
                 }
             }
 
-            return descriptionsDict;
+            if (isKeyUsed && sb.Length != 0)
+            {
+                string? description = sb.ToString().Trim();
+
+                if (description != null && TryToAddDescription(description, descriptionsHash))
+                    return;
+            }
+        }
+
+        private static bool TryToAddDescription(string description, Hashtable descriptionsHash)
+        {
+            try
+            {
+                var splittedRun = description.Trim().Split(' ');
+                splittedRun = splittedRun.Where(sr => true).ToArray();
+
+                var isAnotherCase = 0;
+                if (CheckFirstWordAndNumber(splittedRun)) isAnotherCase = 1;
+                else if (CheckFirstWordsAndNumber(splittedRun)) isAnotherCase = 2;
+
+                if (isAnotherCase == 0) return true;
+
+                var (key, value) = GetDescrFromLine(splittedRun, isAnotherCase);
+                if (value.Length != 0 && !descriptionsHash.ContainsKey(key))
+                    descriptionsHash.Add(key, value);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(ex.Message);
+            }
+
+            return false;
+        }
+
+        private static bool IsOnlyKey(string text)
+        {
+            var splittedLine = text.Trim().Split(' ');
+
+            if(splittedLine.Length == 0 || splittedLine.Length == 1) return false;
+
+            if (Compare(splittedLine[0].ToLower(), "на") == 0 || Compare(splittedLine[0].ToLower(), "on") == 0)
+            {
+                return splittedLine.Length <= 3 && splittedLine[1].Trim().Length >= 3 || KeyWords.Contains(splittedLine[1].ToLower());
+            }
+            
+            return splittedLine.Length <= 3 && splittedLine[0].Trim().Length >= 3 || KeyWords.Contains(splittedLine[0].ToLower());
         }
 
         private static bool CheckFirstWordAndNumber(IReadOnlyList<string> splittedRun)
@@ -95,11 +160,12 @@ namespace docxParserForms.DocxHandler
                 sb.Append(' ');
             }
 
-            var isDashFirst = CompareOrdinal(splittedRun[0], "-") == 0;
+            if(CompareOrdinal(splittedRun[0], "-") == 0)
+                _ = splittedRun[0].Replace('-', ' ');
 
-            return !isDashFirst
-                ? (splittedRun[0] + " " + splittedRun[1], sb.ToString().Replace("SEQ ARABIC", "").Trim())
-                : (splittedRun[1] + " " + splittedRun[2], sb.ToString().Replace("SEQ ARABIC", "").Trim());
+            splittedRun = splittedRun.Where(sr => true).ToArray();
+
+            return (splittedRun[isAnotherCase - 1] + " " + splittedRun[isAnotherCase], sb.ToString().Replace("SEQ ARABIC", "").Trim());
         }
 
         private static bool CheckForNumber(string line, NumberStyles style, IFormatProvider formatter)

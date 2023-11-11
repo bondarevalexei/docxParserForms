@@ -1,7 +1,6 @@
 ﻿using System.Collections;
 using System.Globalization;
 using System.Text;
-using SautinSoft.Document;
 using static System.Double;
 // using Run = DocumentFormat.OpenXml.Wordprocessing.Run;
 
@@ -11,31 +10,23 @@ namespace docxParserForms.DocxHandler
     {
         private static readonly string[] KeyWords = { "картинка", "рисунок", "рис.", "фигура", "фиг.", "изображение", "image", "figure", "fig.", "picture", "pic." };
 
-        public static string? GetDescription(Paragraph paragraph, Hashtable? descriptionsHash, ref bool isHashUsed)
+        public static string? GetDescription(string line, Hashtable? descriptionsHash)
         {
-            var stringBuilder = new StringBuilder();
-            foreach (var element in paragraph.GetChildElements(false, ElementType.Run))
-            {
-                var run = (Run)element;
-                stringBuilder.Append(run.Text);
-            }
+            var splittedLine = line.Split(' ');
+            if (splittedLine[0].Trim().Length <= 3 || !KeyWords.Contains(splittedLine[0].ToLower()))
+                return null;
 
-            var splittedText = stringBuilder.ToString().Split(Environment.NewLine);
-            foreach (var line in splittedText)
-            {
-                var splittedLine = line.Split(' ');
-                if (splittedLine[0].Trim().Length <= 3 || !KeyWords.Contains(splittedLine[0].ToLower())) continue;
+            var keyWord = splittedLine[0] + " " + splittedLine[1];
+            if (descriptionsHash == null || !descriptionsHash.ContainsKey(keyWord))
+                return TakeDataFromString(splittedLine, splittedLine[0]);
 
-                var keyWord = splittedLine[0] + " " + splittedLine[1];
-                if (descriptionsHash == null || !descriptionsHash.ContainsKey(keyWord))
-                    return TakeDataFromString(splittedLine, splittedLine[0]);
+            return descriptionsHash[keyWord]?.ToString();
+        }
 
-                isHashUsed = true;
-                return descriptionsHash[keyWord]?.ToString();
-
-            }
-
-            return null;
+        public static bool IsOnlyKey(string line)
+        {
+            var splittedLine = line.Trim().Split(' ');
+            return splittedLine.Length <= 3 && splittedLine[0].Trim().Length >= 3 || KeyWords.Contains(splittedLine[0].ToLower());
         }
 
         public static string TakeDataFromString(string[] splittedLine, string keyWord)
