@@ -22,7 +22,7 @@ namespace docxParserForms
                 return -1;
             });
 
-            return (scoreResult[0] + scoreResult[1] >= 0.85, result.PredictedLabel);
+            return (scoreResult[0] + scoreResult[1] >= 0.93, result.PredictedLabel);
         }
     }
 }

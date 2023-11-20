@@ -62,7 +62,7 @@ namespace docxParserForms.DocxHandler
             var dc = DocumentCore.Load(filePath);
             var isDescNeed = false;
             List<string> descriptionsBefore = new();
-            var (tempImagesCount, parAfter, isBefore) = (0, 0, false);
+            var (tempImagesCount, parAfter, parBefore, isBefore) = (0, 0, 0, false);
 
             foreach (var element in dc.GetChildElements(true, ElementType.Paragraph))
             {
@@ -108,6 +108,7 @@ namespace docxParserForms.DocxHandler
                             {
                                 descriptions.Add(descriptionsBefore[0]);
                                 descriptionsBefore.RemoveAt(0);
+                                parBefore--;
                             }
                             else
                             {
@@ -121,7 +122,14 @@ namespace docxParserForms.DocxHandler
                     else
                     {
                         isBefore = true;
+                        if (parBefore > 5 && descriptionsBefore.Count != 0)
+                        {
+                            parBefore--;
+                            descriptionsBefore.RemoveAt(0);
+                        }
+
                         CheckRuns(childElements, descriptionsHash, descriptions, isBefore, descriptionsBefore);
+                        parBefore++;
                     }
                 }
 
@@ -230,7 +238,7 @@ namespace docxParserForms.DocxHandler
                         Width = images[i].Width,
                         Height = images[i].Height,
                         IsGraphics = isGraphics,
-                        GrahicsType = isGraphics? graphicName : "-",
+                        GrahicsType = isGraphics ? graphicName : "-",
                     });
                 }
                 else
