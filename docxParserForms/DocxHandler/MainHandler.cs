@@ -225,10 +225,20 @@ namespace docxParserForms.DocxHandler
         {
             for (var i = 0; i < descriptions.Count; i++)
             {
-                if (images[i].Width >= _minImageWidth && images[i].Height >= _minImageHeight)
-                {
-                    var (isGraphics, graphicName) = GraphicsClassificationResult.GetClassificatorResult(images[i]);
+                var (isResult, resultName) = GraphicsClassificationResult.GetClassificatorResult(images[i]);
+                var (isGraphics, isFormula, isAstro) = (false, false, false);
 
+                if (isResult && String.Compare(resultName, "astonauts and pilots",
+                    StringComparison.OrdinalIgnoreCase) != 0 && String.Compare(resultName, "formulas") != 0)
+                    isGraphics = true;
+                else if (isResult && String.Compare(resultName, "astonauts and pilots",
+                    StringComparison.OrdinalIgnoreCase) == 0)
+                    isAstro = true;
+                else if (isResult && String.Compare(resultName, "formulas") == 0)
+                    isFormula = true;
+
+                if (isFormula || images[i].Width >= _minImageWidth && images[i].Height >= _minImageHeight)
+                {
                     models.Add(new Model
                     {
                         Description = descriptions[i],
@@ -237,8 +247,9 @@ namespace docxParserForms.DocxHandler
                         ImageFormat = imageTypes[i],
                         Width = images[i].Width,
                         Height = images[i].Height,
-                        IsGraphics = isGraphics,
-                        GrahicsType = isGraphics ? graphicName : "-",
+                        GrahicsType = isGraphics ? resultName : "-",
+                        IsAstronautOrPilot = isAstro,
+                        IsFormula = isFormula,
                     });
                 }
                 else
