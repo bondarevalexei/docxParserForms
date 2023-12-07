@@ -14,7 +14,7 @@ namespace docxParserForms.DocxHandler
         public static string? GetDescription(string line, Hashtable? descriptionsHash)
         {
             IFormatProvider formatter = new NumberFormatInfo { NumberDecimalSeparator = "." };
-            var style = NumberStyles.Number | NumberStyles.AllowCurrencySymbol;
+            const NumberStyles style = NumberStyles.Number | NumberStyles.AllowCurrencySymbol;
 
             var splittedLine = line.Split(' ');
             var anotherKeyWord = false;
@@ -22,11 +22,11 @@ namespace docxParserForms.DocxHandler
             var splittedLine0 = splittedLine[0].Trim().Split('.');
             splittedLine0 = splittedLine0.Where(sr => true).ToArray();
 
-            if (splittedLine0 != null && splittedLine0.Length >= 2
-                && KeyWords.Contains(splittedLine0[0].ToLower())
-                && (CheckForNumber(splittedLine0[1], style, formatter)
-                || splittedLine0[1].Length >= 1
-                && TryParse(splittedLine0[1], style, formatter, out _)))
+            if (splittedLine0.Length >= 2
+                     && KeyWords.Contains(splittedLine0[0].ToLower())
+                     && (CheckForNumber(splittedLine0[1], style, formatter)
+                         || splittedLine0[1].Length >= 1
+                         && TryParse(splittedLine0[1], style, formatter, out _)))
                 anotherKeyWord = true;
 
 
@@ -35,7 +35,7 @@ namespace docxParserForms.DocxHandler
 
             var keyWord = !anotherKeyWord
                 ? splittedLine[0] + " " + splittedLine[1]
-                : splittedLine0[0] + ". " + splittedLine0[1];
+                : splittedLine0?[0] + ". " + splittedLine0?[1];
 
             keyWord = keyWord.ToLower();
 
@@ -43,7 +43,7 @@ namespace docxParserForms.DocxHandler
                 ? splittedLine[0] : splittedLine0[0];
 
             if (descriptionsHash == null || !descriptionsHash.ContainsKey(keyWord))
-                return TakeDataFromString(splittedLine, keyForFunc, style, formatter);
+                return null;
 
             return descriptionsHash[keyWord]?.ToString();
         }
@@ -83,14 +83,12 @@ namespace docxParserForms.DocxHandler
             return false;
         }
 
-        public static bool IsDescriptionDevided(string description, string splitExample)
+        public static bool IsDescriptionDivided(string description, string splitExample)
         {
             var separators = splitExample.Split("; ");
             separators = separators.Where(sep => sep != null || sep?.Length != 0).ToArray();
 
-            if (description.Contains(separators[0])) return true;
-
-            return false;
+            return description.Contains(separators[0]);
         }
 
         public static List<string> HandleDescriptionToMany(string description, string _splitExample)
@@ -98,41 +96,34 @@ namespace docxParserForms.DocxHandler
             List<string> res = new();
 
             IFormatProvider formatter = new NumberFormatInfo { NumberDecimalSeparator = "." };
-            var style = NumberStyles.Number | NumberStyles.AllowCurrencySymbol;
+            const NumberStyles style = NumberStyles.Number | NumberStyles.AllowCurrencySymbol;
 
             var separators = _splitExample.Split("; ");
             separators = separators.Where(sep => sep != null || sep?.Length != 0).ToArray();
 
             int sepIndex = 0, curIndex = 0;
 
-            if (description.Contains(separators[sepIndex]))
+            if (!description.Contains(separators[sepIndex])) return res;
+            
+            var splittedDescr = description.Split(' ');
+
+            curIndex = description.IndexOf(separators[sepIndex], StringComparison.Ordinal);
+            while (true)
             {
-                var splittedDescr = description.Split(' ');
+                sepIndex++;
+                StringBuilder tempString = new();
 
-                foreach (var item in splittedDescr)
+                while (curIndex < splittedDescr.Length && splittedDescr[curIndex] != separators[sepIndex])
                 {
-                    if (string.Compare(item, separators[sepIndex]) == 0) break;
-                    curIndex++;
+                    tempString.Append(splittedDescr[curIndex++]).Append(' ');
                 }
 
-                curIndex = description.IndexOf(separators[sepIndex], StringComparison.Ordinal);
-                while (true)
-                {
-                    sepIndex++;
-                    StringBuilder tempString = new();
+                res.Add(DescriptionHandler.TakeDataFromString(
+                    tempString.ToString().Split(' '), separators[sepIndex], style, formatter));
+                curIndex++;
 
-                    while (curIndex < splittedDescr.Length && splittedDescr[curIndex] != separators[sepIndex])
-                    {
-                        tempString.Append(splittedDescr[curIndex++]).Append(' ');
-                    }
-
-                    res.Add(DescriptionHandler.TakeDataFromString(
-                        tempString.ToString().Split(' '), separators[sepIndex], style, formatter));
-                    curIndex++;
-
-                    if (curIndex >= splittedDescr.Length - 1)
-                        break;
-                }
+                if (curIndex >= splittedDescr.Length - 1)
+                    break;
             }
 
             return res;

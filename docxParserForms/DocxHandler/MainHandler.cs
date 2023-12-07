@@ -1,7 +1,6 @@
 ﻿using Newtonsoft.Json.Linq;
 using SautinSoft.Document;
 using System.Collections;
-using System.Globalization;
 using System.Text;
 using Paragraph = SautinSoft.Document.Paragraph;
 
@@ -34,7 +33,9 @@ namespace docxParserForms.DocxHandler
                 CheckDescriptions(descriptions, images.Count);
                 WriteDataInModelsList(images, descriptions, models, filepath, imageTypes);
                 descriptionsHash.Clear();
-                images.Clear(); descriptions.Clear(); imageTypes.Clear();
+                images.Clear();
+                descriptions.Clear();
+                imageTypes.Clear();
 
                 //DbHandler.SaveToDb(descriptions, images, _connectionString);
                 MessageBox.Show($"Файл {filepath} успешно обработан. Добавлено {models.Count} элемента(ов).");
@@ -74,6 +75,9 @@ namespace docxParserForms.DocxHandler
                 var imagesCountInParagraph = CountImagesForParagraph(paragraph);
                 if (imagesCountInParagraph > 0)
                 {
+                    isBefore = false;
+                    parAfter = 0;
+
                     if (isDescNeed)
                     {
                         while (descriptions.Count < tempImagesCount)
@@ -89,8 +93,8 @@ namespace docxParserForms.DocxHandler
                             }
                         }
 
-                        isDescNeed = false;
-                        parAfter = 0;
+                        descriptionsBefore.Clear();
+                        parBefore = 0;
                     }
 
                     tempImagesCount += imagesCountInParagraph;
@@ -100,7 +104,7 @@ namespace docxParserForms.DocxHandler
                 {
                     if (isDescNeed)
                     {
-                        if (parAfter <= 20)
+                        if (parAfter <= 35)
                             CheckRuns(childElements, descriptionsHash, descriptions, isBefore, descriptionsBefore);
                         else
                         {
@@ -115,13 +119,14 @@ namespace docxParserForms.DocxHandler
                                 descriptions.Add("");
                             }
 
-                            isDescNeed = false;
                             parAfter = 0;
+                            parBefore = 0;
+                            descriptionsBefore.Clear();
                         }
                     }
                     else
                     {
-                        isBefore = true;
+                        isBefore = descriptionsBefore.Count != 0;
                         if (parBefore > 5 && descriptionsBefore.Count != 0)
                         {
                             parBefore--;
@@ -146,69 +151,54 @@ namespace docxParserForms.DocxHandler
 
             foreach (var child in childElements)
             {
-                if (child.ElementType == ElementType.Run)
+                if (child.ElementType != ElementType.Run) continue;
+
+                var run = (Run)child;
+
+                if (run.Text.Contains("1Л"))
                 {
-                    var run = (Run)child;
-
-                    if (DescriptionHandler.IsOnlyKey(run.Text) || tempIndex < 3 && isKeyUsed)
-                    {
-                        isKeyUsed = true;
-                        sb.Append(run.Text.Trim());
-                        sb.Append(' ');
-                        tempIndex++;
-                        continue;
-                    }
-
-                    string? description = !isKeyUsed
-                        ? DescriptionHandler.GetDescription(run.Text, descriptionsHash)
-                        : DescriptionHandler.GetDescription(sb.ToString().Trim(), descriptionsHash);
-
-                    AddDescription(description, !isBefore ? descriptions : descriptionsBefore);
-
-
-                    isKeyUsed = false;
-                    tempIndex = 0;
-                    sb.Clear();
+                    _ = false;
                 }
+
+                if (DescriptionHandler.IsOnlyKey(run.Text) || tempIndex < 3 && isKeyUsed)
+                {
+                    isKeyUsed = true;
+                    sb.Append(run.Text.Trim());
+                    sb.Append(' ');
+                    tempIndex++;
+                    continue;
+                }
+
+                var description = !isKeyUsed
+                    ? DescriptionHandler.GetDescription(run.Text, descriptionsHash)
+                    : DescriptionHandler.GetDescription(sb.ToString().Trim(), descriptionsHash);
+
+                AddDescription(description, !isBefore ? descriptions : descriptionsBefore);
+
+                isKeyUsed = false;
+                tempIndex = 0;
+                sb.Clear();
             }
 
             if (isKeyUsed && sb.Length != 0)
             {
-                string? description = DescriptionHandler.GetDescription(sb.ToString().Trim(), descriptionsHash);
+                var description = DescriptionHandler.GetDescription(sb.ToString().Trim(), descriptionsHash);
                 AddDescription(description, !isBefore ? descriptions : descriptionsBefore);
             }
         }
 
         private void AddDescription(string? description, ICollection<string> descriptions)
         {
-            if (description != null)
+            if (description == null) return;
+
+            if (DescriptionHandler.IsDescriptionDivided(description, _splitExample))
             {
-                if (DescriptionHandler.IsDescriptionDevided(description, _splitExample))
-                {
-                    var tempDescriptions = DescriptionHandler.HandleDescriptionToMany(description, _splitExample);
-                    foreach (var item in tempDescriptions)
-                        descriptions.Add(item);
-                }
-                else
-                    descriptions.Add(description);
+                var tempDescriptions = DescriptionHandler.HandleDescriptionToMany(description, _splitExample);
+                foreach (var item in tempDescriptions)
+                    descriptions.Add(item);
             }
-        }
-
-        private string? FindDescription(Hashtable descriptionsHash, int i)
-        {
-            foreach (string key in descriptionsHash.Keys)
-            {
-                IFormatProvider formatter = new NumberFormatInfo { NumberDecimalSeparator = "." };
-                var style = NumberStyles.Number | NumberStyles.AllowCurrencySymbol;
-
-                if (DescriptionHandler.CheckForNumber(key.Split(' ')[1], style, formatter))
-                    return key;
-
-                _ = double.TryParse(key.Split(' ')[1], out double temp);
-                if ((int)temp == i + 1) return key;
-            }
-
-            return null;
+            else
+                descriptions.Add(description);
         }
 
         private int CountImagesForParagraph(Element el)
@@ -216,7 +206,7 @@ namespace docxParserForms.DocxHandler
             var count = 0;
             Paragraph par = (Paragraph)el;
             count += (from picture in par.GetChildElements(true, ElementType.Picture)
-                      select picture).Count();
+                select picture).Count();
             return count;
         }
 
@@ -225,17 +215,17 @@ namespace docxParserForms.DocxHandler
         {
             for (var i = 0; i < descriptions.Count; i++)
             {
-                var (isResult, resultName) = GraphicsClassificationResult.GetClassificatorResult(images[i]);
+                // var (isResult, resultName) = GraphicsClassificationResult.GetClassificatorResult(images[i]);
                 var (isGraphics, isFormula, isAstro) = (false, false, false);
 
-                if (isResult && String.Compare(resultName, "astonauts and pilots",
+                /* if (isResult && String.Compare(resultName, "astonauts and pilots",
                     StringComparison.OrdinalIgnoreCase) != 0 && String.Compare(resultName, "formulas") != 0)
                     isGraphics = true;
                 else if (isResult && String.Compare(resultName, "astonauts and pilots",
                     StringComparison.OrdinalIgnoreCase) == 0)
                     isAstro = true;
                 else if (isResult && String.Compare(resultName, "formulas") == 0)
-                    isFormula = true;
+                    isFormula = true; */
 
                 if (isFormula || images[i].Width >= _minImageWidth && images[i].Height >= _minImageHeight)
                 {
@@ -247,7 +237,7 @@ namespace docxParserForms.DocxHandler
                         ImageFormat = imageTypes[i],
                         Width = images[i].Width,
                         Height = images[i].Height,
-                        GrahicsType = isGraphics ? resultName : "-",
+                        GrahicsType = isGraphics.ToString() /*? resultName : "-" */,
                         IsAstronautOrPilot = isAstro,
                         IsFormula = isFormula,
                     });
