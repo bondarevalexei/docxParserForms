@@ -37,7 +37,7 @@ namespace docxParserForms.DocxHandler
                 descriptions.Clear();
                 imageTypes.Clear();
 
-                //DbHandler.SaveToDb(descriptions, images, _connectionString);
+                //DbHandler.SaveToDb(models, _connectionString);
                 MessageBox.Show($"Файл {filepath} успешно обработан. Добавлено {models.Count} элемента(ов).");
             }
             catch (Exception ex)
